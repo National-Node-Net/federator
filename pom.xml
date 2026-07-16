@@ -7,7 +7,7 @@
   <packaging>jar</packaging>
   <name>Federator</name>
   <description>Provides a federator client and server to allow for the sharing of data between IA Nodes</description>
-  <url>https://github.com/National-Digital-Twin/federator</url>
+  <url>https://github.com/National-Node-Net/federator</url>
   <licenses>
     <license>
       <name>Apache-2.0</name>
@@ -25,15 +25,15 @@
     </developer>
   </developers>
   <scm>
-    <connection>scm:git:git@github.com:National-Digital-Twin/federator.git</connection>
-    <developerConnection>scm:git:git@github.com:National-Digital-Twin/federator.git</developerConnection>
-    <url>https://github.com/National-Digital-Twin/federator</url>
+    <connection>scm:git:git@github.com:National-Node-Net/federator.git</connection>
+    <developerConnection>scm:git:git@github.com:National-Node-Net/federator.git</developerConnection>
+    <url>https://github.com/National-Node-Net/federator</url>
   </scm>
   <distributionManagement>
     <repository>
       <id>github</id>
       <name>National Digital Twin Programme</name>
-      <url>https://maven.pkg.github.com/National-Digital-Twin/federator</url>
+      <url>https://maven.pkg.github.com/National-Node-Net/federator</url>
     </repository>
   </distributionManagement>
   <properties>
@@ -500,7 +500,7 @@
       </snapshots>
       <id>github</id>
       <name>GitHub National Digital Twin Apache Maven Packages</name>
-      <url>https://maven.pkg.github.com/National-Digital-Twin/secure-agents-lib</url>
+      <url>https://maven.pkg.github.com/National-Node-Net/secure-agents-lib</url>
     </repository>
   </repositories>
   <build>

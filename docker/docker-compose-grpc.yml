@@ -26,7 +26,7 @@ name: grpc
 services:
   federator-server:
 #    image: uk.gov.dbt.ndtp/${ARTIFACT_ID}-server:${VERSION}
-    image: ghcr.io/national-digital-twin/federator/federator-server:0.90.0
+    image: ghcr.io/national-node-net/federator/federator-server:0.90.0
     container_name: federator-server
     cap_drop:
       - ALL
@@ -53,7 +53,7 @@ services:
 
   federator-client:
 #    image: uk.gov.dbt.ndtp/${ARTIFACT_ID}-client:${VERSION}
-    image: ghcr.io/national-digital-twin/federator/federator-client:0.90.0
+    image: ghcr.io/national-node-net/federator/federator-client:0.90.0
     container_name: federator-client
     cap_drop:
       - ALL
