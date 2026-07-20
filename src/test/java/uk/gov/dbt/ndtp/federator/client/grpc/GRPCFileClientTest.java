@@ -26,6 +26,11 @@ import uk.gov.dbt.ndtp.grpc.FileStreamRequest;
 import uk.gov.dbt.ndtp.grpc.StreamWarning;
 
 class GRPCFileClientTest {
+        
+    @BeforeEach
+    void prepare() {
+        PropertyUtil.clear();
+    }
 
     @AfterEach
     void tearDown() {
