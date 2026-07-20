@@ -52,6 +52,11 @@ class PropertyUtilTest {
         PropertyUtil.init(VALID_FILE);
     }
 
+    @AfterEach
+    void tearDown() {
+        PropertyUtil.clear();
+    }
+
     @Test
     void testInitializePropertiesFromResource() {
         boolean result = PropertyUtil.initializeProperties();

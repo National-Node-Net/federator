@@ -50,6 +50,11 @@ class FileKafkaEventMessageProcessorTest {
         validatorField.set(processor, mockValidator);
     }
 
+    @AfterEach
+    void tearDown() {
+        PropertyUtil.clear();
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void testProcessSuccessfully() throws Exception {
