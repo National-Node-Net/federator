@@ -70,7 +70,7 @@
     <dependency.protoc-gen-grpc>1.68.0</dependency.protoc-gen-grpc>
     <dependency.redis-jedis>5.2.0</dependency.redis-jedis>
     <dependency.slf4j>2.0.17</dependency.slf4j>
-    <dependency.testcontainers>1.20.6</dependency.testcontainers>
+    <dependency.testcontainers>2.0.5</dependency.testcontainers>
     <dependency.testcontainers.redis>2.2.4</dependency.testcontainers.redis>
     <jobrunr.version>8.0.2</jobrunr.version>
     <dependency.awssdk-bom>2.40.4</dependency.awssdk-bom>
