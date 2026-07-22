@@ -21,7 +21,7 @@ version: 2
 registries:
   secure-agents-lib:
     type: maven-repository
-    url: https://maven.pkg.github.com/National-Digital-Twin/secure-agents-lib
+    url: https://maven.pkg.github.com/National-Node-Net/secure-agents-lib
     username: dependabot
     password: ${{ secrets.GH_PACKAGES_PAT }}
 updates:

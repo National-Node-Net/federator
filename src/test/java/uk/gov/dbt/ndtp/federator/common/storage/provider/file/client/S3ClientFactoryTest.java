@@ -27,6 +27,7 @@ class S3ClientFactoryTest {
 
     @AfterEach
     void tearDown() {
+        PropertyUtil.clear();
         try {
             S3ClientFactory.resetClient();
         } catch (Exception ignored) {

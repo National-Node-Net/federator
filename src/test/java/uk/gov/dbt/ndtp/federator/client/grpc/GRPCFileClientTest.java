@@ -7,6 +7,8 @@ import static org.mockito.Mockito.*;
 import com.google.protobuf.ByteString;
 import java.util.Iterator;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -25,6 +27,16 @@ import uk.gov.dbt.ndtp.grpc.FileStreamRequest;
 import uk.gov.dbt.ndtp.grpc.StreamWarning;
 
 class GRPCFileClientTest {
+
+    @BeforeEach
+    void prepare() {
+        PropertyUtil.clear();
+    }
+
+    @AfterEach
+    void tearDown() {
+        PropertyUtil.clear();
+    }
 
     @Test
     void processTopic_success_savesNextSequenceToRedis() {

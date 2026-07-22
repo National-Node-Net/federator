@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -50,6 +51,11 @@ class PropertyUtilTest {
     void prepare() {
         PropertyUtil.clear();
         PropertyUtil.init(VALID_FILE);
+    }
+
+    @AfterEach
+    void tearDown() {
+        PropertyUtil.clear();
     }
 
     @Test

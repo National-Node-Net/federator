@@ -2,7 +2,7 @@ site_name: Federator Documentation
 site_description: Federator is a middleware solution for connecting different traffic management systems and sharing real-time traffic data and control capabilities between them in a standardized way
 site_author: NDTP
 site_url: https://docs.ndtp.co.uk/
-#repo_url: https://github.com/National-Digital-Twin/federator
+#repo_url: https://github.com/National-Node-Net/federator
 edit_uri: edit/main/docs/
 nav: []
 theme:

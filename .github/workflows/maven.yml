@@ -57,8 +57,8 @@ jobs:
       - name: Code Coverage
         env:
           GH_PACKAGES_PAT: ${{ secrets.GH_PACKAGES_PAT }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        run: ./mvnw $MAVEN_CLI_OPTS verify -Dsonar.projectKey=National-Digital-Twin_federator2 -Dsonar.organization=national-digital-twin -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN_N3 }}
+        run: ./mvnw $MAVEN_CLI_OPTS verify -Dsonar.projectKey=National-Node-Net_federator -Dsonar.organization=national-node-net -Dsonar.coverage.jacoco.xmlReportPaths=target/site/jacoco/jacoco.xml org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
       - name: Verify JaCoCo XML exists
         run: ls -l target/site/jacoco/jacoco.xml
   lint:
@@ -102,7 +102,7 @@ jobs:
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
 
       - name: Login to ghcr.io
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -112,7 +112,7 @@ jobs:
         run: echo "REPO=${GITHUB_REPOSITORY,,}" >>${GITHUB_ENV}
 
       - name: Get server and client jars
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: federator-*.jar
           path: target
@@ -136,6 +136,7 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
           severity: "CRITICAL,HIGH"
+          trivyignores: .trivyignore
         continue-on-error: false
 
       - name: Build Client Image
@@ -151,6 +152,7 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
           severity: "CRITICAL,HIGH"
+          trivyignores: .trivyignore
         continue-on-error: false
 
       - name: Clean up docker image
