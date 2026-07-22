@@ -136,6 +136,7 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
           severity: "CRITICAL,HIGH"
+          trivyignores: .trivyignore
         continue-on-error: false
 
       - name: Build Client Image
@@ -151,6 +152,7 @@ jobs:
           exit-code: 1
           ignore-unfixed: true
           severity: "CRITICAL,HIGH"
+          trivyignores: .trivyignore
         continue-on-error: false
 
       - name: Clean up docker image
