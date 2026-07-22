@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../assets/android-chrome-512x512-1-150x150.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -33,7 +33,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1220,7 +1220,7 @@
 Docker desktop is the preferred tool, however a vanilla Docker installation will also work.
 If you are an Ubuntu user then you might also need to follow some extra steps to get Docker Desktop working <a href="https://docs.docker.com/desktop/get-started/#credentials-management-for-linux-users">see the link here.</a></p>
 <p>Additionally, you must have:
-- <a href="https://github.com/National-Digital-Twin/management-node">Management Node</a> running and accessible. This is a Spring Boot application and must be started for configuration and coordination.
+- <a href="https://github.com/National-Node-Net/management-node">Management Node</a> running and accessible. This is a Spring Boot application and must be started for configuration and coordination.
 - <a href="https://www.keycloak.org/">Keycloak</a> instance for authentication and JWT issuance.
 - [Postgres] database for Keycloak, typically started via the Management Node Docker Compose file.</p>
 <h3 id="certificates-security">Certificates &amp; Security</h3>
@@ -1259,7 +1259,7 @@ If you are an Ubuntu user then you might also need to follow some extra steps to
 - Uses the JWT token to authenticate with Management Node and retrieve configuration (including producer/server details).
 - The Management Node returns configuration as JSON, which the client uses to connect to servers and manage jobs.
 - The server validates JWT tokens and checks the <code>aud</code> claim for authorization.</p>
-<p>To spin up Management Node, Keycloak, and Postgres locally, use the Docker Compose file provided by the Management Node project: <a href="https://github.com/National-Digital-Twin/management-node/tree/main/docker/keycloak">Management Node Docker Compose</a>.</p>
+<p>To spin up Management Node, Keycloak, and Postgres locally, use the Docker Compose file provided by the Management Node project: <a href="https://github.com/National-Node-Net/management-node/tree/main/docker/keycloak">Management Node Docker Compose</a>.</p>
 <p>For more details, see <a href="../authentication/">authentication.md</a>.</p>
 <h3 id="maven-setup">Maven setup</h3>
 <p>Currently, we are using GitHub package repositories to distribute libraries. To ensure that Maven have access to the package repositories we need to update the settings.
@@ -1282,7 +1282,7 @@ Open up <code>$MAVEN_HOME/.m2/settings.xml</code> and add the following</p>
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a><span class="w">                </span><span class="nt">&lt;/repository&gt;</span>
 </span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="w">                </span><span class="nt">&lt;repository&gt;</span>
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="w">                    </span><span class="nt">&lt;id&gt;</span>github<span class="nt">&lt;/id&gt;</span>
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">                    </span><span class="nt">&lt;url&gt;</span>https://maven.pkg.github.com/National-Digital-Twin/*<span class="nt">&lt;/url&gt;</span>
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a><span class="w">                    </span><span class="nt">&lt;url&gt;</span>https://maven.pkg.github.com/National-Node-Net/*<span class="nt">&lt;/url&gt;</span>
 </span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a><span class="w">                    </span><span class="nt">&lt;snapshots&gt;</span>
 </span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a><span class="w">                        </span><span class="nt">&lt;enabled&gt;</span>true<span class="nt">&lt;/enabled&gt;</span>
 </span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a><span class="w">                    </span><span class="nt">&lt;/snapshots&gt;</span>
@@ -1414,7 +1414,7 @@ For full licensing terms, see <a href="../OGL_LICENSE.md">OGL_LICENSE.md</a>.</p
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="January 5, 2026 11:12:20 UTC">January 5, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="July 22, 2026 13:19:17 UTC">July 22, 2026</span>
   </span>
 
     
@@ -1469,7 +1469,7 @@ For full licensing terms, see <a href="../OGL_LICENSE.md">OGL_LICENSE.md</a>.</p
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.annotate", "content.code.copy", "content.code.select", "content.tooltips", "navigation.indexes", "navigation.tracking", "search.highlight", "search.share", "search.suggest", "search.share", "navigation.instant", "navigation.instant.prefetch", "navigation.instant", "navigation.instant.progress", "navigation.path", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
