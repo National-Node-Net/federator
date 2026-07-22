@@ -63,7 +63,7 @@
     <dependency.jackson>2.18.8</dependency.jackson>
     <dependency.junit-jupiter>5.12.1</dependency.junit-jupiter>
     <dependency.logback>1.5.24</dependency.logback>
-    <dependency.mockito>5.17.0</dependency.mockito>
+    <dependency.mockito>5.23.0</dependency.mockito>
     <dependency.lombok>1.18.38</dependency.lombok>
     <dependency.nimbusds>10.4.2</dependency.nimbusds>
     <dependency.protobuf-protoc>3.25.5</dependency.protobuf-protoc>
