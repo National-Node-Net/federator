@@ -88,7 +88,7 @@
     <dependency.errorprone>2.36.0</dependency.errorprone>
     <resilience4j-circuitbreaker.version>2.3.0</resilience4j-circuitbreaker.version>
     <gson.version>2.12.1</gson.version>
-    <dependency.jna>5.17.0</dependency.jna>
+    <dependency.jna>5.19.1</dependency.jna>
     <dependency.msal4j>1.23.1</dependency.msal4j>
     <dependency.animal-sniffer-annotations>1.26</dependency.animal-sniffer-annotations>
     <dependency.j2objc-annotations>3.1</dependency.j2objc-annotations>
