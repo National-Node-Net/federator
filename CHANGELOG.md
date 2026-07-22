@@ -7,6 +7,13 @@
 
 --- 
 
+## 1.2.1 - 2026-07-16
+
+### Changed
+
+- Alignment of GitHub actions to new organisation.
+
+
 All notable changes to this repository will be documented in this file.
 
 This project follows **Semantic Versioning (SemVer)** ([semver.org](https://semver.org/)), using the format:

@@ -13,7 +13,7 @@ This repository contributes to the development of **secure, scalable, and intero
 
 This repository is one of several open-source components that underpin NDTP’s **Integration Architecture (IA)**—a framework designed to allow organisations to manage and exchange data securely while maintaining control over their own information. The IA is actively deployed and tested across multiple sectors, ensuring its adaptability and alignment with real-world needs.
 
-For a complete overview of the Integration Architecture (IA) project, please see the [Integration Architecture Documentation](https://github.com/National-Digital-Twin/integration-architecture-documentation).
+For a complete overview of the Integration Architecture (IA) project, please see the [Integration Architecture Documentation](https://github.com/National-Node-Net/integration-architecture-documentation).
 
 ## Prerequisites
 
@@ -21,7 +21,7 @@ For a complete overview of the Integration Architecture (IA) project, please see
 * This repo uses a maven wrapper so no installation of maven is required.
 * [Docker](https://www.docker.com/)
 * [Git](https://git-scm.com/)
-* [Management-node](https://github.com/National-Digital-Twin/management-node/)
+* [Management-node](https://github.com/National-Node-Net/management-node/)
 
 ## Quick Start
 
@@ -32,7 +32,7 @@ Follow these steps to get started quickly with this repository. For detailed ins
 To download from the github repository run the following commands:
 
 ```shell
-git clone https://github.com/National-Digital-Twin/federator.git
+git clone https://github.com/National-Node-Net/federator.git
 cd federator  
 ```
 

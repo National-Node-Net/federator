@@ -27,14 +27,14 @@ have already set up your maven `.m2/settings.xml` profile and have a working PAT
 ## Prerequisites
 
 - Java 21+, Docker, and Git installed.
-- [Management Node](https://github.com/National-Digital-Twin/management-node) (Spring Boot app) running and accessible.
+- [Management Node](https://github.com/National-Node-Net/management-node) (Spring Boot app) running and accessible.
 - [Keycloak](https://www.keycloak.org/) instance for authentication and JWT issuance.
 - [Postgres] database for Keycloak, typically started via the Management Node Docker Compose file.
 - Valid certificates for mTLS:
   - Keystore in PKCS12 (`.p12`) format
   - Truststore in JKS (`.jks`) format
 - All certificates must be trusted by all parties (client, server, Management Node, Keycloak).
-- Docker Compose file for Management Node, Keycloak, and Postgres: [Management Node Docker Compose](https://github.com/National-Digital-Twin/management-node/tree/main/docker/keycloak)
+- Docker Compose file for Management Node, Keycloak, and Postgres: [Management Node Docker Compose](https://github.com/National-Node-Net/management-node/tree/main/docker/keycloak)
 
 ## Certificates & Security
 
@@ -49,24 +49,24 @@ For details on generating and configuring certificates, see [authentication.md](
 ## Federator Deployment
 
 1. Ensure Management Node, Keycloak, and Postgres are running. Use the official Management Node Docker Compose file to spin up these services:
-   [Management Node Docker Compose](https://github.com/National-Digital-Twin/management-node/tree/main/docker/keycloak)
+   [Management Node Docker Compose](https://github.com/National-Node-Net/management-node/tree/main/docker/keycloak)
 
 2. Locate the `docker/docker-compose-grpc.yml` file which contains a federator client and server.
 
 3. Replace the `image` of the `federator-server` and `federator-client` with their respective GHCR images, we recommend
-   checking the [released federator packages](https://github.com/orgs/National-Digital-Twin/packages?repo_name=federator)
+   checking the [released federator packages](https://github.com/orgs/National-Node-Net/packages?repo_name=federator)
    for an up-to-date version.
 
    ```yaml
     federator-server:
     #    image: uk.gov.dbt.ndtp/${ARTIFACT_ID}-server:${VERSION}
-        image: ghcr.io/national-digital-twin/federator/federator-server:0.90.0
+        image: ghcr.io/national-node-net/federator/federator-server:0.90.0
 
    ... Rest of file ...
 
    federator-client:
    #  image: uk.gov.dbt.ndtp/${ARTIFACT_ID}-client:${VERSION}
-      image: ghcr.io/national-digital-twin/federator/federator-client:0.90.0
+      image: ghcr.io/national-node-net/federator/federator-client:0.90.0
    ```
 4. Start the docker containers with the following command:
 

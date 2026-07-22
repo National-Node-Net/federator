@@ -23,7 +23,7 @@
 
 FROM eclipse-temurin:21 AS federator
 
-LABEL org.opencontainers.image.source=https://github.com/National-Digital-Twin/federator
+LABEL org.opencontainers.image.source=https://github.com/National-Node-Net/federator
 
 RUN mkdir -p /library/ /app/ && \
 	groupadd appgroup && \

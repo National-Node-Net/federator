@@ -35,7 +35,7 @@ Docker desktop is the preferred tool, however a vanilla Docker installation will
 If you are an Ubuntu user then you might also need to follow some extra steps to get Docker Desktop working [see the link here.](https://docs.docker.com/desktop/get-started/#credentials-management-for-linux-users)
 
 Additionally, you must have:
-- [Management Node](https://github.com/National-Digital-Twin/management-node) running and accessible. This is a Spring Boot application and must be started for configuration and coordination.
+- [Management Node](https://github.com/National-Node-Net/management-node) running and accessible. This is a Spring Boot application and must be started for configuration and coordination.
 - [Keycloak](https://www.keycloak.org/) instance for authentication and JWT issuance.
 - [Postgres] database for Keycloak, typically started via the Management Node Docker Compose file.
 
@@ -80,7 +80,7 @@ Federator requires Management Node for dynamic configuration and Keycloak for au
 - The Management Node returns configuration as JSON, which the client uses to connect to servers and manage jobs.
 - The server validates JWT tokens and checks the `aud` claim for authorization.
 
-To spin up Management Node, Keycloak, and Postgres locally, use the Docker Compose file provided by the Management Node project: [Management Node Docker Compose](https://github.com/National-Digital-Twin/management-node/tree/main/docker/keycloak).
+To spin up Management Node, Keycloak, and Postgres locally, use the Docker Compose file provided by the Management Node project: [Management Node Docker Compose](https://github.com/National-Node-Net/management-node/tree/main/docker/keycloak).
 
 For more details, see [authentication.md](authentication.md).
 
@@ -109,7 +109,7 @@ Open up `$MAVEN_HOME/.m2/settings.xml` and add the following
                 </repository>
                 <repository>
                     <id>github</id>
-                    <url>https://maven.pkg.github.com/National-Digital-Twin/*</url>
+                    <url>https://maven.pkg.github.com/National-Node-Net/*</url>
                     <snapshots>
                         <enabled>true</enabled>
                     </snapshots>
