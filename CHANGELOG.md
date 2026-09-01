@@ -11,7 +11,7 @@
 
 ### Changed
 
-- Pinned GitHub Actions to full commit SHAs via pinact.
+- Updated GitHub Actions to latest versions.
 - Bumped `netty-bom` to `4.1.136.Final` to resolve Trivy-flagged Java
   CVEs (CVE-2026-59901, CVE-2026-55831, CVE-2026-55833, CVE-2026-56745,
   CVE-2026-56819).
