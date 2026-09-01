@@ -7,6 +7,21 @@
 
 --- 
 
+## 1.2.2 - 2026-09-01
+
+### Changed
+
+- Updated GitHub Actions to latest versions.
+- Bumped `netty-bom` to `4.1.136.Final` to resolve Trivy-flagged Java
+  CVEs (CVE-2026-59901, CVE-2026-55831, CVE-2026-55833, CVE-2026-56745,
+  CVE-2026-56819).
+
+### Fixed
+
+- Patched OS packages in `eclipse-temurin`-based Docker images
+  (`Dockerfile.server`, `Dockerfile.client`, `Dockerfile.gh-actions`) to
+  resolve Trivy-flagged OS-level CVEs (openssl/libssl3t64).
+
 ## 1.2.1 - 2026-07-16
 
 ### Changed
