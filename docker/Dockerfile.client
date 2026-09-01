@@ -26,10 +26,13 @@ FROM eclipse-temurin:21 AS federator
 LABEL org.opencontainers.image.source=https://github.com/National-Node-Net/federator
 
 # Patch OS-level packages to pick up latest security fixes (Trivy)
+# Also remove the unused /usr/bin/pebble binary bundled by the base image,
+# which carries known HIGH Go stdlib CVEs and is not used by federator.
 RUN apt-get update && \
 	apt-get upgrade -y && \
 	apt-get clean && \
-	rm -rf /var/lib/apt/lists/*
+	rm -rf /var/lib/apt/lists/* && \
+	rm -f /usr/bin/pebble
 
 RUN mkdir -p /library/ /app/ && \
 	groupadd appgroup && \
