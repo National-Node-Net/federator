@@ -25,6 +25,12 @@ FROM eclipse-temurin:21 AS federator
 
 LABEL org.opencontainers.image.source=https://github.com/National-Node-Net/federator
 
+# Patch OS-level packages to pick up latest security fixes (Trivy)
+RUN apt-get update && \
+	apt-get upgrade -y && \
+	apt-get clean && \
+	rm -rf /var/lib/apt/lists/*
+
 RUN mkdir -p /library/ /app/ && \
 	groupadd appgroup && \
 	useradd -Mg appgroup federator-service && \
