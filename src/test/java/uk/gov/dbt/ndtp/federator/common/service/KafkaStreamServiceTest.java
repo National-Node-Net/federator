@@ -26,6 +26,9 @@ import uk.gov.dbt.ndtp.federator.common.model.dto.ConsumerDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProducerConfigDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProducerDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProductDTO;
+import uk.gov.dbt.ndtp.federator.common.policy.AllowAllPolicyDecisionClient;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionClient;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionResponse;
 import uk.gov.dbt.ndtp.federator.common.service.config.ProducerConfigService;
 import uk.gov.dbt.ndtp.federator.common.service.kafka.KafkaStreamService;
 import uk.gov.dbt.ndtp.federator.common.utils.ProducerConsumerConfigServiceFactory;
@@ -69,7 +72,7 @@ class KafkaStreamServiceTest {
 
     @Test
     void test_getFilterAttributesForConsumer_returnsAttributesForMatchingConsumerAndTopic() {
-        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS);
+        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient());
         List<AttributesDTO> attrs = List.of(new AttributesDTO("tenant", "alpha", "String"));
         ProducerConfigDTO cfg = buildConfig("telemetry.raw", "client-a", attrs);
 
@@ -83,7 +86,7 @@ class KafkaStreamServiceTest {
 
     @Test
     void test_getFilterAttributesForConsumer_returnsEmpty_whenNoMatchOrNulls() {
-        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS);
+        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient());
         // null config
         assertEquals(Collections.emptyList(), cut.getFilterAttributesForConsumer("x", "y", null));
         // config but different topic
@@ -100,14 +103,14 @@ class KafkaStreamServiceTest {
 
     @Test
     void test_hasConsumerAccessToTopic_trueWhenMatching() {
-        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS);
+        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient());
         ProducerConfigDTO cfg = buildConfig("dp1", "CLIENT-123", null);
         assertTrue(invokeHasConsumerAccessToTopic(cut, "client-123", "dp1", cfg));
     }
 
     @Test
     void test_hasConsumerAccessToTopic_falseWhenNoProducersOrNoMatch() {
-        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS);
+        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient());
         // null config
         assertFalse(invokeHasConsumerAccessToTopic(cut, "c", "t", null));
         // empty producers
@@ -125,7 +128,7 @@ class KafkaStreamServiceTest {
 
     @Test
     void test_streamToClient_throwsInvalidTopic_whenAccessDenied() {
-        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS);
+        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient());
         TopicRequest req =
                 TopicRequest.newBuilder().setTopic("not-allowed").setOffset(0L).build();
         StreamObservable observer = mock(StreamObservable.class);
@@ -157,7 +160,7 @@ class KafkaStreamServiceTest {
 
     @Test
     void test_streamToClient_awaitsTheFutureSubmittedToTheExecutorService() throws IOException {
-        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS);
+        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient());
         TopicRequest req =
                 TopicRequest.newBuilder().setTopic("test").setOffset(0L).build();
         StreamObservable observer = mock(StreamObservable.class);
@@ -227,6 +230,118 @@ class KafkaStreamServiceTest {
                 verify(mockFuture, times(1)).get();
             } catch (InterruptedException | ExecutionException ignored) {
                 // ignored
+            }
+        }
+    }
+
+    @Test
+    void test_streamToClient_throwsSecurityException_whenPolicyDenies() {
+        PolicyDecisionClient policyDecisionClient = mock(PolicyDecisionClient.class);
+        when(policyDecisionClient.evaluate(any())).thenReturn(new PolicyDecisionResponse(false));
+
+        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient);
+
+        TopicRequest req =
+                TopicRequest.newBuilder().setTopic("test").setOffset(0L).build();
+
+        StreamObservable observer = mock(StreamObservable.class);
+        ExecutorService executorService = mock(ExecutorService.class);
+
+        Context ctx = Context.current().withValue(GRPCContextKeys.CLIENT_ID, "consumer-1");
+
+        Context previous = ctx.attach();
+
+        try {
+            assertThrows(SecurityException.class, () -> cut.streamToClient(req, observer, executorService));
+
+            verify(executorService, never()).submit(any(Runnable.class));
+        } finally {
+            ctx.detach(previous);
+        }
+    }
+
+    @Test
+    void test_streamToClient_continues_whenPolicyAllows() throws IOException {
+        PolicyDecisionClient policyDecisionClient = mock(PolicyDecisionClient.class);
+        when(policyDecisionClient.evaluate(any())).thenReturn(new PolicyDecisionResponse(true));
+
+        KafkaStreamService cut = new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient);
+
+        TopicRequest req =
+                TopicRequest.newBuilder().setTopic("test").setOffset(0L).build();
+
+        StreamObservable observer = mock(StreamObservable.class);
+        ExecutorService executorService = mock(ExecutorService.class);
+
+        ProductDTO mockProductDto = mock(ProductDTO.class);
+        ConsumerDTO mockConsumerDto = mock(ConsumerDTO.class);
+
+        ArrayList<ConsumerDTO> mockConsumerDtos = new ArrayList<>();
+        mockConsumerDtos.add(mockConsumerDto);
+
+        when(mockProductDto.getTopic()).thenReturn("test");
+        when(mockConsumerDto.getIdpClientId()).thenReturn("consumer-1");
+        when(mockProductDto.getConsumers()).thenReturn(mockConsumerDtos);
+
+        ArrayList<ProductDTO> mockProductDtos = new ArrayList<>();
+        mockProductDtos.add(mockProductDto);
+
+        ProducerDTO mockProducerDto = mock(ProducerDTO.class);
+
+        ArrayList<ProducerDTO> mockProducerDtos = new ArrayList<>();
+        mockProducerDtos.add(mockProducerDto);
+
+        when(mockProducerDto.getProducts()).thenReturn(mockProductDtos);
+
+        ProducerConfigService mockService = mock(ProducerConfigService.class);
+
+        ProducerConfigDTO producerCfg =
+                ProducerConfigDTO.builder().producers(mockProducerDtos).build();
+
+        try (MockedStatic<ProducerConsumerConfigServiceFactory> mockedFactory =
+                Mockito.mockStatic(ProducerConsumerConfigServiceFactory.class)) {
+
+            mockedFactory
+                    .when(ProducerConsumerConfigServiceFactory::getProducerConfigService)
+                    .thenReturn(mockService);
+
+            when(mockService.getProducerConfiguration()).thenReturn(producerCfg);
+
+            Future mockFuture = mock(Future.class);
+            when(executorService.submit(any(Runnable.class))).thenReturn(mockFuture);
+
+            Context ctx = Context.current().withValue(GRPCContextKeys.CLIENT_ID, "consumer-1");
+
+            Context previous = ctx.attach();
+
+            Path tmp = Files.createTempFile("pep-allow-test-", ".properties");
+
+            try {
+                String props = String.join(
+                        "\n",
+                        "kafka.defaultKeyDeserializerClass=org.apache.kafka.common.serialization.StringDeserializer",
+                        "kafka.defaultValueDeserializerClass=uk.gov.dbt.ndtp.federator.access.AccessMessageDeserializer",
+                        "kafka.bootstrapServers=localhost:9092",
+                        "kafka.consumerGroup=test",
+                        "kafka.pollRecords=100");
+
+                Files.writeString(tmp, props);
+                PropertyUtil.init(tmp.toFile());
+
+                cut.streamToClient(req, observer, executorService);
+
+            } finally {
+                Files.deleteIfExists(tmp);
+                PropertyUtil.clear();
+                ctx.detach(previous);
+            }
+
+            verify(policyDecisionClient, times(1)).evaluate(any());
+            verify(executorService, times(1)).submit(any(Runnable.class));
+
+            try {
+                verify(mockFuture, times(1)).get();
+            } catch (InterruptedException | ExecutionException ignored) {
             }
         }
     }
