@@ -51,6 +51,10 @@ class GRPCServerTest {
                     .when(() -> PropertyUtil.getPropertiesFromFilePath(any()))
                     .thenReturn(mockNestedProps);
 
+            propertyUtilMockedStatic
+                    .when(() -> PropertyUtil.getPropertyValue(anyString(), anyString()))
+                    .thenAnswer(invocation -> invocation.getArgument(1));
+
             sslUtilsMockedStatic
                     .when(() -> SSLUtils.createSSLContext(anyString(), anyString(), anyString(), anyString()))
                     .thenReturn(mock(SSLContext.class));
@@ -98,6 +102,9 @@ class GRPCServerTest {
             propertyUtilMockedStatic
                     .when(() -> PropertyUtil.getPropertiesFromFilePath(any()))
                     .thenReturn(mockNestedProps);
+            propertyUtilMockedStatic
+                    .when(() -> PropertyUtil.getPropertyValue(anyString(), anyString()))
+                    .thenAnswer(invocation -> invocation.getArgument(1));
 
             X509KeyManager mockKeyManager = mock(X509KeyManager.class);
             X509TrustManager mockTrustManager = mock(X509TrustManager.class);

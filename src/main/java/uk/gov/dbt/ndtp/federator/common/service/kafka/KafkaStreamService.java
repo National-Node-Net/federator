@@ -14,6 +14,10 @@ import uk.gov.dbt.ndtp.federator.common.model.dto.AttributesDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ConsumerDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProducerConfigDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProductDTO;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionClient;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionRequest;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionResponse;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyInput;
 import uk.gov.dbt.ndtp.federator.common.service.stream.CloseableFederatorStreamService;
 import uk.gov.dbt.ndtp.federator.common.utils.ThreadUtil;
 import uk.gov.dbt.ndtp.federator.server.conductor.MessageConductor;
@@ -27,9 +31,11 @@ import uk.gov.dbt.ndtp.grpc.TopicRequest;
 public class KafkaStreamService extends CloseableFederatorStreamService<TopicRequest, KafkaByteBatch> {
     public static final Logger LOGGER = LoggerFactory.getLogger("KafkaStreamService");
     private final Set<String> sharedHeaders;
+    private final PolicyDecisionClient policyDecisionClient;
 
-    public KafkaStreamService(Set<String> sharedHeaders) {
+    public KafkaStreamService(Set<String> sharedHeaders, PolicyDecisionClient policyDecisionClient) {
         this.sharedHeaders = sharedHeaders;
+        this.policyDecisionClient = policyDecisionClient;
     }
 
     @Override
@@ -39,6 +45,19 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
         String topic = request.getTopic();
         long offset = request.getOffset();
         String consumerId = GRPCContextKeys.CLIENT_ID.get();
+        PolicyInput policyInput = new PolicyInput(consumerId, null, topic, "consume");
+
+        PolicyDecisionRequest policyRequest = new PolicyDecisionRequest(policyInput);
+
+        PolicyDecisionResponse policyDecisionResponse = policyDecisionClient.evaluate(policyRequest);
+
+        if (!Boolean.TRUE.equals(policyDecisionResponse.result())) {
+            LOGGER.warn("Policy decision DENY [clientId={}, resource={}, action=consume]", consumerId, topic);
+            throw new SecurityException("Request denied by policy");
+        }
+
+        LOGGER.info("Policy decision ALLOW [clientId={}, resource={}, action=consume]", consumerId, topic);
+
         streamObservable.setOnCancelHandler(() -> LOGGER.info("Cancel called by client: {}", consumerId));
 
         ProducerConfigDTO producerConfigDTO = getProducerConfiguration();

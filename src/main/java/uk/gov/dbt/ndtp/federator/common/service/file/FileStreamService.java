@@ -8,6 +8,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.gov.dbt.ndtp.federator.common.model.dto.AttributesDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProducerConfigDTO;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionClient;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionRequest;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionResponse;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyInput;
 import uk.gov.dbt.ndtp.federator.common.service.stream.CloseableFederatorStreamService;
 import uk.gov.dbt.ndtp.federator.common.utils.ThreadUtil;
 import uk.gov.dbt.ndtp.federator.server.conductor.FileConductor;
@@ -20,6 +24,11 @@ import uk.gov.dbt.ndtp.grpc.FileStreamRequest;
 
 public class FileStreamService extends CloseableFederatorStreamService<FileStreamRequest, FileStreamEvent> {
     private static final Logger LOGGER = LoggerFactory.getLogger(FileStreamService.class);
+    private final PolicyDecisionClient policyDecisionClient;
+
+    public FileStreamService(PolicyDecisionClient policyDecisionClient) {
+        this.policyDecisionClient = policyDecisionClient;
+    }
 
     @Override
     public void streamToClient(
@@ -30,6 +39,15 @@ public class FileStreamService extends CloseableFederatorStreamService<FileStrea
         String consumerId = GRPCContextKeys.CLIENT_ID.get();
         streamObservable.setOnCancelHandler(() -> LOGGER.info("Cancel called by client: {}", consumerId));
         String topic = fileRequest.getTopic();
+        PolicyInput policyInput = new PolicyInput(consumerId, null, topic, "consume");
+        PolicyDecisionRequest policyRequest = new PolicyDecisionRequest(policyInput);
+        PolicyDecisionResponse policyDecisionResponse = policyDecisionClient.evaluate(policyRequest);
+        if (!Boolean.TRUE.equals(policyDecisionResponse.result())) {
+            LOGGER.warn("Policy decision DENY [clientId={}, resource={}, action=consume]", consumerId, topic);
+
+            throw new SecurityException("Request denied by policy");
+        }
+        LOGGER.info("Policy decision ALLOW [clientId={}, resource={}, action=consume]", consumerId, topic);
         ProducerConfigDTO producerConfigDTO = getProducerConfiguration();
         List<AttributesDTO> filterAttributes = getFilterAttributesForConsumer(consumerId, topic, producerConfigDTO);
 

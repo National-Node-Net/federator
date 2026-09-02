@@ -62,6 +62,10 @@ public class GRPCFederatorService extends FederatorServiceGrpc.FederatorServiceI
         this.federator = new FederatorService(sharedHeaders);
     }
 
+    GRPCFederatorService(FederatorService federator) {
+        this.federator = federator;
+    }
+
     @Override
     public void getKafkaConsumer(TopicRequest request, StreamObserver<KafkaByteBatch> responseObserver) {
 
@@ -76,6 +80,10 @@ public class GRPCFederatorService extends FederatorServiceGrpc.FederatorServiceI
             LOGGER.error("Invalid topic", e);
             responseObserver.onError(
                     Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
+        } catch (SecurityException e) {
+            LOGGER.warn("Request denied by policy: {}", e.getMessage());
+            responseObserver.onError(
+                    Status.PERMISSION_DENIED.withDescription(e.getMessage()).asRuntimeException());
         }
     }
 
@@ -89,7 +97,13 @@ public class GRPCFederatorService extends FederatorServiceGrpc.FederatorServiceI
                 (ServerCallStreamObserver<FileStreamEvent>) responseObserver;
         StreamObservable<FileStreamEvent> streamObservable =
                 new LimitedServerCallStreamObserver<>(serverCallStreamObserver);
-        federator.getFileConsumer(request, streamObservable);
+        try {
+            federator.getFileConsumer(request, streamObservable);
+        } catch (SecurityException e) {
+            LOGGER.warn("Request denied by policy: {}", e.getMessage());
+            responseObserver.onError(
+                    Status.PERMISSION_DENIED.withDescription(e.getMessage()).asRuntimeException());
+        }
     }
 
     @ExcludeFromJacocoGeneratedReport

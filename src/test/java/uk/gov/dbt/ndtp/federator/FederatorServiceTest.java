@@ -30,12 +30,19 @@ import static org.mockito.Mockito.*;
 
 import java.util.Set;
 import org.apache.kafka.common.errors.InvalidTopicException;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import uk.gov.dbt.ndtp.federator.common.service.stream.CloseableFederatorStreamService;
+import uk.gov.dbt.ndtp.federator.common.utils.PropertyUtil;
 import uk.gov.dbt.ndtp.federator.server.interfaces.StreamObservable;
 import uk.gov.dbt.ndtp.grpc.TopicRequest;
 
 class FederatorServiceTest {
+
+    @BeforeAll
+    static void setUpProperties() {
+        PropertyUtil.init("test.properties");
+    }
 
     @SuppressWarnings("unchecked")
     private static <T> void setPrivateField(Object target, String fieldName, T value) {
