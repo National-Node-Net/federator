@@ -41,11 +41,11 @@ public class FederatorService implements AutoCloseable {
         int opaReadTimeout = Integer.parseInt(PropertyUtil.getPropertyValue("opa.read-timeout", "5"));
 
         PolicyDecisionClient policyDecisionClient =
-                new OpaPolicyDecisionClient(opaUrl, opaDecisionPath, opaConnectTimeout, opaReadTimeout);
+                new OpaPolicyDecisionClient(opaUrl, opaConnectTimeout, opaReadTimeout);
 
-        this.kafkaStreamService = new KafkaStreamService(sharedHeaders, policyDecisionClient);
+        this.kafkaStreamService = new KafkaStreamService(sharedHeaders, policyDecisionClient, opaDecisionPath);
 
-        this.fileStreamService = new FileStreamService(policyDecisionClient);
+        this.fileStreamService = new FileStreamService(policyDecisionClient, opaDecisionPath);
     }
 
     /**

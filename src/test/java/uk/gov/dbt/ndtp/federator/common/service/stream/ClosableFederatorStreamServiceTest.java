@@ -17,7 +17,8 @@ class ClosableFederatorStreamServiceTest {
 
     @Test
     void shouldCloseAllMessageConductorsAndClearTheList_whenClosed() {
-        CloseableFederatorStreamService service = new FileStreamService(new AllowAllPolicyDecisionClient());
+        CloseableFederatorStreamService service =
+                new FileStreamService(new AllowAllPolicyDecisionClient(), "/v1/data/producer/allow");
 
         MessageConductor messageConductor1 = mock(MessageConductor.class);
         service.messageConductors.add(messageConductor1);

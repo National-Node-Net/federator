@@ -26,9 +26,11 @@ import uk.gov.dbt.ndtp.grpc.FileStreamRequest;
 
 class FileStreamServiceTest {
 
+    private static final String POLICY_DECISION_PATH = "/v1/data/producer/allow";
+
     @Test
     void test_streamToClient_invokesConductorAndCompletes() {
-        FileStreamService cut = new FileStreamService(new AllowAllPolicyDecisionClient());
+        FileStreamService cut = new FileStreamService(new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH);
 
         StreamObservable<FileStreamEvent> observer = mock(StreamObservable.class);
 
@@ -83,7 +85,8 @@ class FileStreamServiceTest {
 
     @Test
     void streamToClient_whenPolicyAllows_continuesProcessing() {
-        FileStreamService fileStreamService = new FileStreamService(new AllowAllPolicyDecisionClient());
+        FileStreamService fileStreamService =
+                new FileStreamService(new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH);
 
         StreamObservable<FileStreamEvent> observer = mock(StreamObservable.class);
         ExecutorService executorService = mock(ExecutorService.class);
@@ -130,16 +133,32 @@ class FileStreamServiceTest {
 
     @Test
     void streamToClient_whenPolicyDenies_throwsSecurityException() {
-        PolicyDecisionClient denyPolicyDecisionClient = request -> new PolicyDecisionResponse(false);
-        FileStreamService fileStreamService = new FileStreamService(denyPolicyDecisionClient);
+        PolicyDecisionClient denyPolicyDecisionClient = (decisionPath, request) -> new PolicyDecisionResponse(false);
+
+        FileStreamService fileStreamService = new FileStreamService(denyPolicyDecisionClient, POLICY_DECISION_PATH);
+
         FileStreamRequest fileRequest =
                 FileStreamRequest.newBuilder().setTopic("test-topic").build();
 
         StreamObservable<FileStreamEvent> observer = mock(StreamObservable.class);
         ExecutorService executorService = mock(ExecutorService.class);
 
-        assertThrows(
-                SecurityException.class,
-                () -> fileStreamService.streamToClient(fileRequest, observer, executorService));
+        ProducerConfigService mockConfigService = mock(ProducerConfigService.class);
+        ProducerConfigDTO emptyConfig =
+                ProducerConfigDTO.builder().producers(java.util.List.of()).build();
+
+        try (MockedStatic<ProducerConsumerConfigServiceFactory> mockedFactory =
+                Mockito.mockStatic(ProducerConsumerConfigServiceFactory.class)) {
+
+            mockedFactory
+                    .when(ProducerConsumerConfigServiceFactory::getProducerConfigService)
+                    .thenReturn(mockConfigService);
+
+            when(mockConfigService.getProducerConfiguration()).thenReturn(emptyConfig);
+
+            assertThrows(
+                    SecurityException.class,
+                    () -> fileStreamService.streamToClient(fileRequest, observer, executorService));
+        }
     }
 }

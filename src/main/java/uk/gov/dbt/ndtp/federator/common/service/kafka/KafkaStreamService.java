@@ -2,10 +2,12 @@ package uk.gov.dbt.ndtp.federator.common.service.kafka;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.slf4j.Logger;
@@ -32,10 +34,13 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
     public static final Logger LOGGER = LoggerFactory.getLogger("KafkaStreamService");
     private final Set<String> sharedHeaders;
     private final PolicyDecisionClient policyDecisionClient;
+    private final String policyDecisionPath;
 
-    public KafkaStreamService(Set<String> sharedHeaders, PolicyDecisionClient policyDecisionClient) {
+    public KafkaStreamService(
+            Set<String> sharedHeaders, PolicyDecisionClient policyDecisionClient, String policyDecisionPath) {
         this.sharedHeaders = sharedHeaders;
         this.policyDecisionClient = policyDecisionClient;
+        this.policyDecisionPath = policyDecisionPath;
     }
 
     @Override
@@ -45,11 +50,21 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
         String topic = request.getTopic();
         long offset = request.getOffset();
         String consumerId = GRPCContextKeys.CLIENT_ID.get();
-        PolicyInput policyInput = new PolicyInput(consumerId, null, topic, "consume");
+        ProducerConfigDTO producerConfigDTO = getProducerConfiguration();
 
+        List<AttributesDTO> consumerAttributes = getFilterAttributesForConsumer(consumerId, topic, producerConfigDTO);
+
+        Map<String, String> policyAttributes = consumerAttributes.stream()
+                .filter(attribute -> attribute.getName() != null && attribute.getValue() != null)
+                .collect(Collectors.toMap(
+                        AttributesDTO::getName,
+                        AttributesDTO::getValue,
+                        (existingValue, replacementValue) -> replacementValue));
+
+        PolicyInput policyInput = new PolicyInput(consumerId, null, topic, "consume", policyAttributes);
         PolicyDecisionRequest policyRequest = new PolicyDecisionRequest(policyInput);
-
-        PolicyDecisionResponse policyDecisionResponse = policyDecisionClient.evaluate(policyRequest);
+        PolicyDecisionResponse policyDecisionResponse =
+                policyDecisionClient.evaluate(policyDecisionPath, policyRequest);
 
         if (!Boolean.TRUE.equals(policyDecisionResponse.result())) {
             LOGGER.warn("Policy decision DENY [clientId={}, resource={}, action=consume]", consumerId, topic);
@@ -59,8 +74,6 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
         LOGGER.info("Policy decision ALLOW [clientId={}, resource={}, action=consume]", consumerId, topic);
 
         streamObservable.setOnCancelHandler(() -> LOGGER.info("Cancel called by client: {}", consumerId));
-
-        ProducerConfigDTO producerConfigDTO = getProducerConfiguration();
 
         if (!hasConsumerAccessToTopic(consumerId, topic, producerConfigDTO)) {
             String errMsg = String.format("Topic (%s) is not valid for client (%s).", topic, consumerId);

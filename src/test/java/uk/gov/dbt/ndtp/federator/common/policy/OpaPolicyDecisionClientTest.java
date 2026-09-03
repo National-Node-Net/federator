@@ -7,6 +7,7 @@ import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class OpaPolicyDecisionClientTest {
@@ -31,12 +32,12 @@ class OpaPolicyDecisionClientTest {
         try {
             int port = server.getAddress().getPort();
 
-            OpaPolicyDecisionClient client = new OpaPolicyDecisionClient("http://localhost:" + port, "/v1/data", 5, 5);
+            OpaPolicyDecisionClient client = new OpaPolicyDecisionClient("http://localhost:" + port, 5, 5);
 
             PolicyDecisionRequest request =
-                    new PolicyDecisionRequest(new PolicyInput("consumer-1", null, "test-topic", "consume"));
+                    new PolicyDecisionRequest(new PolicyInput("consumer-1", null, "test-topic", "consume", Map.of()));
 
-            PolicyDecisionResponse response = client.evaluate(request);
+            PolicyDecisionResponse response = client.evaluate("/v1/data", request);
 
             assertEquals(Boolean.TRUE, response.result());
         } finally {
@@ -64,12 +65,12 @@ class OpaPolicyDecisionClientTest {
         try {
             int port = server.getAddress().getPort();
 
-            OpaPolicyDecisionClient client = new OpaPolicyDecisionClient("http://localhost:" + port, "/v1/data", 5, 5);
+            OpaPolicyDecisionClient client = new OpaPolicyDecisionClient("http://localhost:" + port, 5, 5);
 
             PolicyDecisionRequest request =
-                    new PolicyDecisionRequest(new PolicyInput("consumer-1", null, "test-topic", "consume"));
+                    new PolicyDecisionRequest(new PolicyInput("consumer-1", null, "test-topic", "consume", Map.of()));
 
-            PolicyDecisionResponse response = client.evaluate(request);
+            PolicyDecisionResponse response = client.evaluate("/v1/data", request);
 
             assertNotEquals(Boolean.TRUE, response.result());
         } finally {
@@ -91,12 +92,12 @@ class OpaPolicyDecisionClientTest {
         try {
             int port = server.getAddress().getPort();
 
-            OpaPolicyDecisionClient client = new OpaPolicyDecisionClient("http://localhost:" + port, "/v1/data", 5, 5);
+            OpaPolicyDecisionClient client = new OpaPolicyDecisionClient("http://localhost:" + port, 5, 5);
 
             PolicyDecisionRequest request =
-                    new PolicyDecisionRequest(new PolicyInput("consumer-1", null, "test-topic", "consume"));
+                    new PolicyDecisionRequest(new PolicyInput("consumer-1", null, "test-topic", "consume", Map.of()));
 
-            PolicyDecisionResponse response = client.evaluate(request);
+            PolicyDecisionResponse response = client.evaluate("/v1/data", request);
 
             assertNotEquals(Boolean.TRUE, response.result());
         } finally {
@@ -106,12 +107,12 @@ class OpaPolicyDecisionClientTest {
 
     @Test
     void returnsDenyWhenOpaIsUnavailable() {
-        OpaPolicyDecisionClient client = new OpaPolicyDecisionClient("http://localhost:1", "/v1/data", 5, 5);
+        OpaPolicyDecisionClient client = new OpaPolicyDecisionClient("http://localhost:1", 5, 5);
 
         PolicyDecisionRequest request =
-                new PolicyDecisionRequest(new PolicyInput("consumer-1", null, "test-topic", "consume"));
+                new PolicyDecisionRequest(new PolicyInput("consumer-1", null, "test-topic", "consume", Map.of()));
 
-        PolicyDecisionResponse response = client.evaluate(request);
+        PolicyDecisionResponse response = client.evaluate("/v1/data", request);
 
         assertNotEquals(Boolean.TRUE, response.result());
     }
@@ -136,12 +137,12 @@ class OpaPolicyDecisionClientTest {
         try {
             int port = server.getAddress().getPort();
 
-            OpaPolicyDecisionClient client = new OpaPolicyDecisionClient("http://localhost:" + port, "/v1/data", 5, 5);
+            OpaPolicyDecisionClient client = new OpaPolicyDecisionClient("http://localhost:" + port, 5, 5);
 
             PolicyDecisionRequest request =
-                    new PolicyDecisionRequest(new PolicyInput("consumer-1", null, "test-topic", "consume"));
+                    new PolicyDecisionRequest(new PolicyInput("consumer-1", null, "test-topic", "consume", Map.of()));
 
-            PolicyDecisionResponse response = client.evaluate(request);
+            PolicyDecisionResponse response = client.evaluate("/v1/data", request);
 
             assertNotEquals(Boolean.TRUE, response.result());
         } finally {
@@ -165,10 +166,11 @@ class OpaPolicyDecisionClientTest {
 
         try {
             OpaPolicyDecisionClient client = new OpaPolicyDecisionClient(
-                    "http://localhost:" + server.getAddress().getPort(), "/v1/data/test/allow", 5, 5);
+                    "http://localhost:" + server.getAddress().getPort(), 5, 5);
 
             PolicyDecisionResponse response = client.evaluate(
-                    new PolicyDecisionRequest(new PolicyInput("client-1", null, "test-topic", "consume")));
+                    "/v1/data/test/allow",
+                    new PolicyDecisionRequest(new PolicyInput("client-1", null, "test-topic", "consume", Map.of())));
 
             assertNotEquals(Boolean.TRUE, response.result());
         } finally {

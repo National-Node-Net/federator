@@ -1,3 +1,6 @@
 package uk.gov.dbt.ndtp.federator.common.policy;
 
-public record PolicyInput(String clientId, String organisation, String resource, String action) {}
+import java.util.Map;
+
+public record PolicyInput(
+        String clientId, String organisation, String resource, String action, Map<String, String> attributes) {}
