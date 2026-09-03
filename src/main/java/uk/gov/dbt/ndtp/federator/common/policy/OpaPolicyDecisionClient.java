@@ -56,6 +56,9 @@ public class OpaPolicyDecisionClient implements PolicyDecisionClient {
 
             return decisionResponse;
 
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return new PolicyDecisionResponse(false);
         } catch (Exception e) {
             return new PolicyDecisionResponse(false);
         }

@@ -342,6 +342,7 @@ class KafkaStreamServiceTest {
             try {
                 verify(mockFuture, times(1)).get();
             } catch (InterruptedException | ExecutionException ignored) {
+                // Ignore cleanup failures during test teardown
             }
         }
     }

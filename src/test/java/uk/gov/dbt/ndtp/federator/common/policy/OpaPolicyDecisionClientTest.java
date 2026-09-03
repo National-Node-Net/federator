@@ -1,7 +1,7 @@
 package uk.gov.dbt.ndtp.federator.common.policy;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
@@ -38,7 +38,7 @@ class OpaPolicyDecisionClientTest {
 
             PolicyDecisionResponse response = client.evaluate(request);
 
-            assertTrue(Boolean.TRUE.equals(response.result()));
+            assertEquals(Boolean.TRUE, response.result());
         } finally {
             server.stop(0);
         }
@@ -71,7 +71,7 @@ class OpaPolicyDecisionClientTest {
 
             PolicyDecisionResponse response = client.evaluate(request);
 
-            assertFalse(Boolean.TRUE.equals(response.result()));
+            assertNotEquals(Boolean.TRUE, response.result());
         } finally {
             server.stop(0);
         }
@@ -98,7 +98,7 @@ class OpaPolicyDecisionClientTest {
 
             PolicyDecisionResponse response = client.evaluate(request);
 
-            assertFalse(Boolean.TRUE.equals(response.result()));
+            assertNotEquals(Boolean.TRUE, response.result());
         } finally {
             server.stop(0);
         }
@@ -113,7 +113,7 @@ class OpaPolicyDecisionClientTest {
 
         PolicyDecisionResponse response = client.evaluate(request);
 
-        assertFalse(Boolean.TRUE.equals(response.result()));
+        assertNotEquals(Boolean.TRUE, response.result());
     }
 
     @Test
@@ -143,7 +143,7 @@ class OpaPolicyDecisionClientTest {
 
             PolicyDecisionResponse response = client.evaluate(request);
 
-            assertFalse(Boolean.TRUE.equals(response.result()));
+            assertNotEquals(Boolean.TRUE, response.result());
         } finally {
             server.stop(0);
         }
@@ -170,7 +170,7 @@ class OpaPolicyDecisionClientTest {
             PolicyDecisionResponse response = client.evaluate(
                     new PolicyDecisionRequest(new PolicyInput("client-1", null, "test-topic", "consume")));
 
-            assertFalse(response.result());
+            assertNotEquals(Boolean.TRUE, response.result());
         } finally {
             server.stop(0);
         }
