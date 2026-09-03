@@ -49,13 +49,13 @@ class FileStreamServiceTest {
                         Mockito.mockStatic(ProducerConsumerConfigServiceFactory.class)) {
 
             // Mock config service to avoid hitting PropertyUtil in tests
-            ProducerConfigService mockConfigService = Mockito.mock(ProducerConfigService.class);
+            ProducerConfigService mockConfigService = mock(ProducerConfigService.class);
             ProducerConfigDTO emptyCfg =
                     ProducerConfigDTO.builder().producers(java.util.List.of()).build();
             mockedFactory
                     .when(ProducerConsumerConfigServiceFactory::getProducerConfigService)
                     .thenReturn(mockConfigService);
-            Mockito.when(mockConfigService.getProducerConfiguration()).thenReturn(emptyCfg);
+            when(mockConfigService.getProducerConfiguration()).thenReturn(emptyCfg);
 
             // Put client id into gRPC Context so service can read it
             Context grpcCtx = Context.current().withValue(GRPCContextKeys.CLIENT_ID, "client-xyz");
@@ -102,7 +102,7 @@ class FileStreamServiceTest {
                 MockedStatic<ProducerConsumerConfigServiceFactory> mockedFactory =
                         Mockito.mockStatic(ProducerConsumerConfigServiceFactory.class)) {
 
-            ProducerConfigService mockConfigService = Mockito.mock(ProducerConfigService.class);
+            ProducerConfigService mockConfigService = mock(ProducerConfigService.class);
 
             ProducerConfigDTO emptyConfig =
                     ProducerConfigDTO.builder().producers(java.util.List.of()).build();
@@ -111,7 +111,7 @@ class FileStreamServiceTest {
                     .when(ProducerConsumerConfigServiceFactory::getProducerConfigService)
                     .thenReturn(mockConfigService);
 
-            Mockito.when(mockConfigService.getProducerConfiguration()).thenReturn(emptyConfig);
+            when(mockConfigService.getProducerConfiguration()).thenReturn(emptyConfig);
 
             Context grpcContext = Context.current().withValue(GRPCContextKeys.CLIENT_ID, "client-xyz");
 
