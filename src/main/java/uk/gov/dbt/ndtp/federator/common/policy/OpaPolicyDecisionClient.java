@@ -10,16 +10,13 @@ import java.time.Duration;
 public class OpaPolicyDecisionClient implements PolicyDecisionClient {
 
     private final String opaUrl;
-    private final String decisionPath;
     private final HttpClient httpClient;
     private final ObjectMapper objectMapper;
     private final Duration readTimeout;
 
-    public OpaPolicyDecisionClient(
-            String opaUrl, String decisionPath, int connectTimeoutSeconds, int readTimeoutSeconds) {
+    public OpaPolicyDecisionClient(String opaUrl, int connectTimeoutSeconds, int readTimeoutSeconds) {
 
         this.opaUrl = opaUrl;
-        this.decisionPath = decisionPath;
 
         this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(connectTimeoutSeconds))
@@ -30,7 +27,7 @@ public class OpaPolicyDecisionClient implements PolicyDecisionClient {
     }
 
     @Override
-    public PolicyDecisionResponse evaluate(PolicyDecisionRequest request) {
+    public PolicyDecisionResponse evaluate(String decisionPath, PolicyDecisionRequest request) {
         try {
             String requestBody = objectMapper.writeValueAsString(request);
 
