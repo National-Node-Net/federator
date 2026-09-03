@@ -388,7 +388,10 @@ class KafkaStreamServiceTest {
         List<AttributesDTO> attributes = List.of(
                 new AttributesDTO("nationality", "GBR", "string"),
                 new AttributesDTO("clearance", "0", "string"),
-                new AttributesDTO("organisation_type", "NON-GOV3", "string"));
+                new AttributesDTO("organisation_type", "NON-GOV3", "string"),
+                new AttributesDTO(null, "ignored", "string"),
+                new AttributesDTO("ignored", null, "string"),
+                new AttributesDTO("clearance", "1", "string"));
 
         ProducerConfigDTO producerConfig = buildConfig("test", "consumer-1", attributes);
 
@@ -421,9 +424,13 @@ class KafkaStreamServiceTest {
 
             assertEquals("GBR", capturedRequest.input().attributes().get("nationality"));
 
-            assertEquals("0", capturedRequest.input().attributes().get("clearance"));
+            assertEquals("1", capturedRequest.input().attributes().get("clearance"));
 
             assertEquals("NON-GOV3", capturedRequest.input().attributes().get("organisation_type"));
+
+            assertFalse(capturedRequest.input().attributes().containsKey(null));
+
+            assertFalse(capturedRequest.input().attributes().containsKey("ignored"));
         }
     }
 }
