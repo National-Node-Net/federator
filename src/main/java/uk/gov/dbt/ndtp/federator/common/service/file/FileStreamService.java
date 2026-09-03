@@ -2,18 +2,13 @@ package uk.gov.dbt.ndtp.federator.common.service.file;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.gov.dbt.ndtp.federator.common.model.dto.AttributesDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProducerConfigDTO;
 import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionClient;
-import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionRequest;
-import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionResponse;
-import uk.gov.dbt.ndtp.federator.common.policy.PolicyInput;
 import uk.gov.dbt.ndtp.federator.common.service.stream.CloseableFederatorStreamService;
 import uk.gov.dbt.ndtp.federator.common.utils.ThreadUtil;
 import uk.gov.dbt.ndtp.federator.server.conductor.FileConductor;
@@ -48,20 +43,7 @@ public class FileStreamService extends CloseableFederatorStreamService<FileStrea
 
         List<AttributesDTO> consumerAttributes = getFilterAttributesForConsumer(consumerId, topic, producerConfigDTO);
 
-        Map<String, String> policyAttributes = consumerAttributes.stream()
-                .filter(attribute -> attribute.getName() != null && attribute.getValue() != null)
-                .collect(Collectors.toMap(
-                        AttributesDTO::getName,
-                        AttributesDTO::getValue,
-                        (existingValue, replacementValue) -> replacementValue));
-
-        PolicyInput policyInput = new PolicyInput(consumerId, null, topic, "consume", policyAttributes);
-
-        PolicyDecisionRequest policyRequest = new PolicyDecisionRequest(policyInput);
-        PolicyDecisionResponse policyDecisionResponse =
-                policyDecisionClient.evaluate(policyDecisionPath, policyRequest);
-
-        if (!Boolean.TRUE.equals(policyDecisionResponse.result())) {
+        if (!isPolicyAllowed(policyDecisionClient, policyDecisionPath, consumerId, topic, consumerAttributes)) {
             LOGGER.warn("Policy decision DENY [clientId={}, resource={}, action=consume]", consumerId, topic);
 
             throw new SecurityException("Request denied by policy");

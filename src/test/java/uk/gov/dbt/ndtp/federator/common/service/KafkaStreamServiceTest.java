@@ -372,7 +372,7 @@ class KafkaStreamServiceTest {
     }
 
     @Test
-    void test_streamToClient_passesConsumerAttributesToPolicyDecision() throws IOException {
+    void test_streamToClient_passesConsumerAttributesToPolicyDecision() {
         PolicyDecisionClient policyDecisionClient = mock(PolicyDecisionClient.class);
         when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(new PolicyDecisionResponse(false));
 
