@@ -97,13 +97,7 @@ public class GRPCFederatorService extends FederatorServiceGrpc.FederatorServiceI
                 (ServerCallStreamObserver<FileStreamEvent>) responseObserver;
         StreamObservable<FileStreamEvent> streamObservable =
                 new LimitedServerCallStreamObserver<>(serverCallStreamObserver);
-        try {
-            federator.getFileConsumer(request, streamObservable);
-        } catch (SecurityException e) {
-            LOGGER.warn("Request denied by policy: {}", e.getMessage());
-            responseObserver.onError(
-                    Status.PERMISSION_DENIED.withDescription(e.getMessage()).asRuntimeException());
-        }
+        federator.getFileConsumer(request, streamObservable);
     }
 
     @ExcludeFromJacocoGeneratedReport
