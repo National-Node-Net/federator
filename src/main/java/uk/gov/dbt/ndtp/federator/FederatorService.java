@@ -5,9 +5,12 @@ import java.util.concurrent.ExecutorService;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.gov.dbt.ndtp.federator.common.policy.OpaPolicyDecisionClient;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionClient;
 import uk.gov.dbt.ndtp.federator.common.service.file.FileStreamService;
 import uk.gov.dbt.ndtp.federator.common.service.kafka.KafkaStreamService;
 import uk.gov.dbt.ndtp.federator.common.service.stream.CloseableFederatorStreamService;
+import uk.gov.dbt.ndtp.federator.common.utils.PropertyUtil;
 import uk.gov.dbt.ndtp.federator.common.utils.ThreadUtil;
 import uk.gov.dbt.ndtp.federator.server.interfaces.StreamObservable;
 import uk.gov.dbt.ndtp.grpc.FileStreamEvent;
@@ -29,7 +32,19 @@ public class FederatorService implements AutoCloseable {
     private final CloseableFederatorStreamService<FileStreamRequest, FileStreamEvent> fileStreamService;
 
     public FederatorService(Set<String> sharedHeaders) {
-        this.kafkaStreamService = new KafkaStreamService(sharedHeaders);
+        String opaUrl = PropertyUtil.getPropertyValue("opa.url", "http://localhost:8181");
+
+        String opaDecisionPath = PropertyUtil.getPropertyValue("opa.decision-path", "/v1/data/producer/allow");
+
+        int opaConnectTimeout = Integer.parseInt(PropertyUtil.getPropertyValue("opa.connect-timeout", "5"));
+
+        int opaReadTimeout = Integer.parseInt(PropertyUtil.getPropertyValue("opa.read-timeout", "5"));
+
+        PolicyDecisionClient policyDecisionClient =
+                new OpaPolicyDecisionClient(opaUrl, opaConnectTimeout, opaReadTimeout);
+
+        this.kafkaStreamService = new KafkaStreamService(sharedHeaders, policyDecisionClient, opaDecisionPath);
+
         this.fileStreamService = new FileStreamService();
     }
 

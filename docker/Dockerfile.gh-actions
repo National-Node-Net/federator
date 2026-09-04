@@ -21,7 +21,7 @@
 
 
 # Application Base Image
-FROM eclipse-temurin:21 AS app-base
+FROM eclipse-temurin:21-noble AS app-base
 RUN apt-get update && \
     apt-get install -y --no-install-recommends dumb-init && \
     apt-get clean && \

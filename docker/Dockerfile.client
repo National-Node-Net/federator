@@ -21,7 +21,7 @@
 
 # syntax=docker/dockerfile:1.2
 
-FROM eclipse-temurin:21 AS federator
+FROM eclipse-temurin:21-noble AS federator
 
 LABEL org.opencontainers.image.source=https://github.com/National-Node-Net/federator
 
