@@ -45,7 +45,7 @@ public class FederatorService implements AutoCloseable {
 
         this.kafkaStreamService = new KafkaStreamService(sharedHeaders, policyDecisionClient, opaDecisionPath);
 
-        this.fileStreamService = new FileStreamService(policyDecisionClient, opaDecisionPath);
+        this.fileStreamService = new FileStreamService();
     }
 
     /**

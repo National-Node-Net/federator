@@ -6,7 +6,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import org.junit.jupiter.api.Test;
-import uk.gov.dbt.ndtp.federator.common.policy.AllowAllPolicyDecisionClient;
 import uk.gov.dbt.ndtp.federator.common.service.file.FileStreamService;
 import uk.gov.dbt.ndtp.federator.server.conductor.MessageConductor;
 
@@ -17,8 +16,7 @@ class ClosableFederatorStreamServiceTest {
 
     @Test
     void shouldCloseAllMessageConductorsAndClearTheList_whenClosed() {
-        CloseableFederatorStreamService service =
-                new FileStreamService(new AllowAllPolicyDecisionClient(), "/v1/data/producer/allow");
+        CloseableFederatorStreamService service = new FileStreamService();
 
         MessageConductor messageConductor1 = mock(MessageConductor.class);
         service.messageConductors.add(messageConductor1);

@@ -13,9 +13,6 @@ import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProducerConfigDTO;
-import uk.gov.dbt.ndtp.federator.common.policy.AllowAllPolicyDecisionClient;
-import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionClient;
-import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionResponse;
 import uk.gov.dbt.ndtp.federator.common.service.config.ProducerConfigService;
 import uk.gov.dbt.ndtp.federator.common.utils.ProducerConsumerConfigServiceFactory;
 import uk.gov.dbt.ndtp.federator.server.conductor.FileConductor;
@@ -26,11 +23,9 @@ import uk.gov.dbt.ndtp.grpc.FileStreamRequest;
 
 class FileStreamServiceTest {
 
-    private static final String POLICY_DECISION_PATH = "/v1/data/producer/allow";
-
     @Test
     void test_streamToClient_invokesConductorAndCompletes() {
-        FileStreamService cut = new FileStreamService(new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH);
+        FileStreamService cut = new FileStreamService();
 
         StreamObservable<FileStreamEvent> observer = mock(StreamObservable.class);
 
@@ -51,13 +46,13 @@ class FileStreamServiceTest {
                         Mockito.mockStatic(ProducerConsumerConfigServiceFactory.class)) {
 
             // Mock config service to avoid hitting PropertyUtil in tests
-            ProducerConfigService mockConfigService = mock(ProducerConfigService.class);
+            ProducerConfigService mockConfigService = Mockito.mock(ProducerConfigService.class);
             ProducerConfigDTO emptyCfg =
                     ProducerConfigDTO.builder().producers(java.util.List.of()).build();
             mockedFactory
                     .when(ProducerConsumerConfigServiceFactory::getProducerConfigService)
                     .thenReturn(mockConfigService);
-            when(mockConfigService.getProducerConfiguration()).thenReturn(emptyCfg);
+            Mockito.when(mockConfigService.getProducerConfiguration()).thenReturn(emptyCfg);
 
             // Put client id into gRPC Context so service can read it
             Context grpcCtx = Context.current().withValue(GRPCContextKeys.CLIENT_ID, "client-xyz");
@@ -80,85 +75,6 @@ class FileStreamServiceTest {
             // Cancel handler is set and onCompleted called
             verify(observer, times(1)).setOnCancelHandler(any());
             verify(observer, times(1)).onCompleted();
-        }
-    }
-
-    @Test
-    void streamToClient_whenPolicyAllows_continuesProcessing() {
-        FileStreamService fileStreamService =
-                new FileStreamService(new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH);
-
-        StreamObservable<FileStreamEvent> observer = mock(StreamObservable.class);
-        ExecutorService executorService = mock(ExecutorService.class);
-        Future mockFuture = mock(Future.class);
-
-        when(executorService.submit(any(Runnable.class))).thenReturn(mockFuture);
-
-        FileStreamRequest fileRequest = FileStreamRequest.newBuilder()
-                .setTopic("test-topic")
-                .setStartSequenceId(0L)
-                .build();
-
-        try (MockedConstruction<FileConductor> mocked = Mockito.mockConstruction(
-                        FileConductor.class,
-                        (mock, context) -> doNothing().when(mock).close());
-                MockedStatic<ProducerConsumerConfigServiceFactory> mockedFactory =
-                        Mockito.mockStatic(ProducerConsumerConfigServiceFactory.class)) {
-
-            ProducerConfigService mockConfigService = mock(ProducerConfigService.class);
-
-            ProducerConfigDTO emptyConfig =
-                    ProducerConfigDTO.builder().producers(java.util.List.of()).build();
-
-            mockedFactory
-                    .when(ProducerConsumerConfigServiceFactory::getProducerConfigService)
-                    .thenReturn(mockConfigService);
-
-            when(mockConfigService.getProducerConfiguration()).thenReturn(emptyConfig);
-
-            Context grpcContext = Context.current().withValue(GRPCContextKeys.CLIENT_ID, "client-xyz");
-
-            Context previousContext = grpcContext.attach();
-
-            try {
-                fileStreamService.streamToClient(fileRequest, observer, executorService);
-            } finally {
-                grpcContext.detach(previousContext);
-            }
-
-            assertEquals(1, mocked.constructed().size());
-            verify(observer, times(1)).onCompleted();
-        }
-    }
-
-    @Test
-    void streamToClient_whenPolicyDenies_throwsSecurityException() {
-        PolicyDecisionClient denyPolicyDecisionClient = (decisionPath, request) -> new PolicyDecisionResponse(false);
-
-        FileStreamService fileStreamService = new FileStreamService(denyPolicyDecisionClient, POLICY_DECISION_PATH);
-
-        FileStreamRequest fileRequest =
-                FileStreamRequest.newBuilder().setTopic("test-topic").build();
-
-        StreamObservable<FileStreamEvent> observer = mock(StreamObservable.class);
-        ExecutorService executorService = mock(ExecutorService.class);
-
-        ProducerConfigService mockConfigService = mock(ProducerConfigService.class);
-        ProducerConfigDTO emptyConfig =
-                ProducerConfigDTO.builder().producers(java.util.List.of()).build();
-
-        try (MockedStatic<ProducerConsumerConfigServiceFactory> mockedFactory =
-                Mockito.mockStatic(ProducerConsumerConfigServiceFactory.class)) {
-
-            mockedFactory
-                    .when(ProducerConsumerConfigServiceFactory::getProducerConfigService)
-                    .thenReturn(mockConfigService);
-
-            when(mockConfigService.getProducerConfiguration()).thenReturn(emptyConfig);
-
-            assertThrows(
-                    SecurityException.class,
-                    () -> fileStreamService.streamToClient(fileRequest, observer, executorService));
         }
     }
 }
