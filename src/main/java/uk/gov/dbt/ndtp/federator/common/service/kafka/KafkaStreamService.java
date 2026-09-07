@@ -57,10 +57,7 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
 
         PolicyDecisionRequest policyRequest = new PolicyDecisionRequest(policyInput);
 
-        PolicyDecisionResponse policyDecisionResponse =
-                policyDecisionClient.evaluate(policyDecisionPath, policyRequest);
-
-        return policyDecisionResponse;
+        return policyDecisionClient.evaluate(policyDecisionPath, policyRequest);
     }
 
     private List<AttributesDTO> getPolicyFilterAttributes(PolicyDecisionResponse policyDecisionResponse) {
