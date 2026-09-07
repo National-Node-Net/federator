@@ -17,10 +17,10 @@ class OpaPolicyDecisionClientTest {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
 
         server.createContext("/v1/data", exchange -> {
-            byte[] response =
-                    """
+            byte[] response = """
                     {"result":{"result":true,"attributes":{}}}
-                    """.getBytes(StandardCharsets.UTF_8);
+                    """
+                    .getBytes(StandardCharsets.UTF_8);
 
             exchange.sendResponseHeaders(200, response.length);
             exchange.getResponseBody().write(response);
@@ -50,10 +50,10 @@ class OpaPolicyDecisionClientTest {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
 
         server.createContext("/v1/data", exchange -> {
-            byte[] response =
-                    """
+            byte[] response = """
                 {"result":{"result":false,"attributes":{}}}
-                """.getBytes(StandardCharsets.UTF_8);
+                """
+                    .getBytes(StandardCharsets.UTF_8);
 
             exchange.sendResponseHeaders(200, response.length);
             exchange.getResponseBody().write(response);
