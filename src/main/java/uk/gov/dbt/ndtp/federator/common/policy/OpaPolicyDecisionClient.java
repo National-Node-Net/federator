@@ -1,5 +1,6 @@
 package uk.gov.dbt.ndtp.federator.common.policy;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -41,23 +42,29 @@ public class OpaPolicyDecisionClient implements PolicyDecisionClient {
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                return new PolicyDecisionResponse(false);
+                return new PolicyDecisionResponse(false, null);
             }
 
-            PolicyDecisionResponse decisionResponse =
-                    objectMapper.readValue(response.body(), PolicyDecisionResponse.class);
+            JsonNode root = objectMapper.readTree(response.body());
+            JsonNode result = root.get("result");
+
+            if (result == null || result.isNull()) {
+                return new PolicyDecisionResponse(false, null);
+            }
+
+            PolicyDecisionResponse decisionResponse = objectMapper.treeToValue(result, PolicyDecisionResponse.class);
 
             if (decisionResponse == null || !Boolean.TRUE.equals(decisionResponse.result())) {
-                return new PolicyDecisionResponse(false);
+                return new PolicyDecisionResponse(false, null);
             }
 
             return decisionResponse;
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return new PolicyDecisionResponse(false);
+            return new PolicyDecisionResponse(false, null);
         } catch (Exception e) {
-            return new PolicyDecisionResponse(false);
+            return new PolicyDecisionResponse(false, null);
         }
     }
 }

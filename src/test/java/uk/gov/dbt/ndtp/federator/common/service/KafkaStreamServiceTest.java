@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -20,6 +21,7 @@ import java.util.concurrent.Future;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.MockedConstruction;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import uk.gov.dbt.ndtp.federator.common.model.dto.AttributesDTO;
@@ -35,6 +37,7 @@ import uk.gov.dbt.ndtp.federator.common.service.config.ProducerConfigService;
 import uk.gov.dbt.ndtp.federator.common.service.kafka.KafkaStreamService;
 import uk.gov.dbt.ndtp.federator.common.utils.ProducerConsumerConfigServiceFactory;
 import uk.gov.dbt.ndtp.federator.common.utils.PropertyUtil;
+import uk.gov.dbt.ndtp.federator.server.conductor.RdfMessageConductor;
 import uk.gov.dbt.ndtp.federator.server.grpc.GRPCContextKeys;
 import uk.gov.dbt.ndtp.federator.server.interfaces.StreamObservable;
 import uk.gov.dbt.ndtp.grpc.TopicRequest;
@@ -69,6 +72,14 @@ class KafkaStreamServiceTest {
         ProducerDTO producer = ProducerDTO.builder().products(new ArrayList<>()).build();
         producer.getProducts().add(product);
         return ProducerConfigDTO.builder().producers(List.of(producer)).build();
+    }
+
+    private PolicyDecisionResponse buildAllowPolicyDecisionResponse() {
+        return new PolicyDecisionResponse(
+                true,
+                Map.of(
+                        "security_label", "OFFICIAL",
+                        "nationality", "GBR"));
     }
 
     // -------------------- Tests for getFilterAttributesForConsumer --------------------
@@ -246,7 +257,7 @@ class KafkaStreamServiceTest {
     @Test
     void test_streamToClient_throwsSecurityException_whenPolicyDenies() {
         PolicyDecisionClient policyDecisionClient = mock(PolicyDecisionClient.class);
-        when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(new PolicyDecisionResponse(false));
+        when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(new PolicyDecisionResponse(false, null));
 
         KafkaStreamService cut =
                 new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH);
@@ -286,7 +297,7 @@ class KafkaStreamServiceTest {
     @Test
     void test_streamToClient_continues_whenPolicyAllows() throws IOException {
         PolicyDecisionClient policyDecisionClient = mock(PolicyDecisionClient.class);
-        when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(new PolicyDecisionResponse(true));
+        when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(buildAllowPolicyDecisionResponse());
 
         KafkaStreamService cut =
                 new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH);
@@ -372,9 +383,76 @@ class KafkaStreamServiceTest {
     }
 
     @Test
+    void test_streamToClient_usesPolicyAttributesForFiltering() throws IOException {
+        PolicyDecisionClient policyDecisionClient = mock(PolicyDecisionClient.class);
+
+        when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(buildAllowPolicyDecisionResponse());
+
+        KafkaStreamService cut =
+                new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH);
+
+        TopicRequest req =
+                TopicRequest.newBuilder().setTopic("test").setOffset(0L).build();
+
+        StreamObservable observer = mock(StreamObservable.class);
+        ExecutorService executorService = mock(ExecutorService.class);
+
+        List<AttributesDTO> consumerAttributes = List.of(
+                new AttributesDTO("nationality", "USA", "string"), new AttributesDTO("clearance", "1", "string"));
+
+        ProducerConfigDTO producerConfig = buildConfig("test", "consumer-1", consumerAttributes);
+
+        ProducerConfigService mockService = mock(ProducerConfigService.class);
+
+        Future mockFuture = mock(Future.class);
+        when(executorService.submit(any(Runnable.class))).thenReturn(mockFuture);
+
+        List<List<?>> constructorArguments = new ArrayList<>();
+
+        try (MockedStatic<ProducerConsumerConfigServiceFactory> mockedFactory =
+                        Mockito.mockStatic(ProducerConsumerConfigServiceFactory.class);
+                MockedConstruction<RdfMessageConductor> mockedConductor = Mockito.mockConstruction(
+                        RdfMessageConductor.class, (mock, context) -> constructorArguments.add(context.arguments()))) {
+
+            mockedFactory
+                    .when(ProducerConsumerConfigServiceFactory::getProducerConfigService)
+                    .thenReturn(mockService);
+
+            when(mockService.getProducerConfiguration()).thenReturn(producerConfig);
+
+            Context ctx = Context.current().withValue(GRPCContextKeys.CLIENT_ID, "consumer-1");
+
+            Context previous = ctx.attach();
+
+            try {
+                cut.streamToClient(req, observer, executorService);
+            } finally {
+                ctx.detach(previous);
+            }
+
+            assertEquals(1, mockedConductor.constructed().size());
+            assertEquals(1, constructorArguments.size());
+
+            @SuppressWarnings("unchecked")
+            List<AttributesDTO> filterAttributes =
+                    (List<AttributesDTO>) constructorArguments.get(0).get(2);
+
+            assertEquals(2, filterAttributes.size());
+
+            assertTrue(filterAttributes.stream()
+                    .anyMatch(attribute ->
+                            "security_label".equals(attribute.getName()) && "OFFICIAL".equals(attribute.getValue())));
+
+            assertTrue(filterAttributes.stream()
+                    .anyMatch(attribute ->
+                            "nationality".equals(attribute.getName()) && "GBR".equals(attribute.getValue())));
+        }
+    }
+
+    @Test
     void test_streamToClient_passesConsumerAttributesToPolicyDecision() {
         PolicyDecisionClient policyDecisionClient = mock(PolicyDecisionClient.class);
-        when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(new PolicyDecisionResponse(false));
+        when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(new PolicyDecisionResponse(false, null));
 
         KafkaStreamService cut =
                 new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH);

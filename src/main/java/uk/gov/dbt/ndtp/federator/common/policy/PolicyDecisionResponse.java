@@ -1,3 +1,5 @@
 package uk.gov.dbt.ndtp.federator.common.policy;
 
-public record PolicyDecisionResponse(Boolean result) {}
+import java.util.Map;
+
+public record PolicyDecisionResponse(Boolean result, Map<String, String> attributes) {}

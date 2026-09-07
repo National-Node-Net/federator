@@ -4,6 +4,6 @@ public class AllowAllPolicyDecisionClient implements PolicyDecisionClient {
 
     @Override
     public PolicyDecisionResponse evaluate(String decisionPath, PolicyDecisionRequest request) {
-        return new PolicyDecisionResponse(true);
+        return new PolicyDecisionResponse(true, null);
     }
 }

@@ -43,7 +43,8 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
         this.policyDecisionPath = policyDecisionPath;
     }
 
-    private boolean isPolicyAllowed(String consumerId, String resource, List<AttributesDTO> consumerAttributes) {
+    private PolicyDecisionResponse evaluatePolicy(
+            String consumerId, String resource, List<AttributesDTO> consumerAttributes) {
 
         Map<String, String> policyAttributes = consumerAttributes.stream()
                 .filter(attribute -> attribute.getName() != null && attribute.getValue() != null)
@@ -59,7 +60,17 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
         PolicyDecisionResponse policyDecisionResponse =
                 policyDecisionClient.evaluate(policyDecisionPath, policyRequest);
 
-        return Boolean.TRUE.equals(policyDecisionResponse.result());
+        return policyDecisionResponse;
+    }
+
+    private List<AttributesDTO> getPolicyFilterAttributes(PolicyDecisionResponse policyDecisionResponse) {
+
+        Map<String, String> policyAttributes =
+                policyDecisionResponse.attributes() == null ? Map.of() : policyDecisionResponse.attributes();
+
+        return policyAttributes.entrySet().stream()
+                .map(entry -> new AttributesDTO(entry.getKey(), entry.getValue(), "string"))
+                .toList();
     }
 
     @Override
@@ -73,12 +84,16 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
 
         List<AttributesDTO> consumerAttributes = getFilterAttributesForConsumer(consumerId, topic, producerConfigDTO);
 
-        if (!isPolicyAllowed(consumerId, topic, consumerAttributes)) {
+        PolicyDecisionResponse policyDecisionResponse = evaluatePolicy(consumerId, topic, consumerAttributes);
+
+        if (!Boolean.TRUE.equals(policyDecisionResponse.result())) {
             LOGGER.warn("Policy decision DENY [clientId={}, resource={}, action=consume]", consumerId, topic);
             throw new SecurityException("Request denied by policy");
         }
 
         LOGGER.info("Policy decision ALLOW [clientId={}, resource={}, action=consume]", consumerId, topic);
+
+        List<AttributesDTO> policyFilterAttributes = getPolicyFilterAttributes(policyDecisionResponse);
 
         streamObservable.setOnCancelHandler(() -> LOGGER.info("Cancel called by client: {}", consumerId));
 
@@ -90,7 +105,7 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
 
         ClientTopicOffsets topicData = new ClientTopicOffsets(consumerId, topic, offset);
         MessageConductor messageConductor =
-                new RdfMessageConductor(topicData, streamObservable, consumerAttributes, this.sharedHeaders);
+                new RdfMessageConductor(topicData, streamObservable, policyFilterAttributes, this.sharedHeaders);
         messageConductors.add(messageConductor);
 
         List<Future<?>> futures = new ArrayList<>();

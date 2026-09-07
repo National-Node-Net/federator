@@ -19,7 +19,7 @@ class OpaPolicyDecisionClientTest {
         server.createContext("/v1/data", exchange -> {
             byte[] response =
                     """
-                    {"result": true}
+                    {"result":{"result":true,"attributes":{}}}
                     """.getBytes(StandardCharsets.UTF_8);
 
             exchange.sendResponseHeaders(200, response.length);
@@ -52,7 +52,7 @@ class OpaPolicyDecisionClientTest {
         server.createContext("/v1/data", exchange -> {
             byte[] response =
                     """
-                {"result": false}
+                {"result":{"result":false,"attributes":{}}}
                 """.getBytes(StandardCharsets.UTF_8);
 
             exchange.sendResponseHeaders(200, response.length);
