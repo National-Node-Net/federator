@@ -685,7 +685,9 @@
         <configuration>
           <excludes>
             <exclude>uk/gov/dbt/ndtp/grpc/*</exclude>
-            <exclude>uk/gov/dbt/ndtp/federator/*.class</exclude>
+            <exclude>uk/gov/dbt/ndtp/federator/FederatorClient*.class</exclude>
+            <exclude>uk/gov/dbt/ndtp/federator/FederatorServer*.class</exclude>
+            <exclude>uk/gov/dbt/ndtp/federator/WrappedGRPCClient.class</exclude>
             <exclude>uk/gov/dbt/ndtp/federator/grpc/*</exclude>
           </excludes>
         </configuration>
