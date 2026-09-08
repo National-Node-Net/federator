@@ -55,17 +55,21 @@ class GRPCServerTest {
                     .when(() -> PropertyUtil.getPropertyValue(anyString(), anyString()))
                     .thenAnswer(invocation -> invocation.getArgument(1));
 
+            SSLContext mockSslContext = mock(SSLContext.class);
+
             sslUtilsMockedStatic
                     .when(() -> SSLUtils.createSSLContext(anyString(), anyString(), anyString(), anyString()))
-                    .thenReturn(mock(SSLContext.class));
+                    .thenReturn(mockSslContext);
 
             ServerBuilder<?> serverBuilder = mock(ServerBuilder.class, Mockito.RETURNS_SELF);
-            when(serverBuilder.build()).thenReturn(mock(Server.class));
+            Server mockServer = mock(Server.class);
+            when(serverBuilder.build()).thenReturn(mockServer);
             serverBuilderMockedStatic
                     .when(() -> ServerBuilder.forPort(any(Integer.class)))
                     .thenReturn(serverBuilder);
 
-            grpcUtilsMockedStatic.when(GRPCUtils::createIdpTokenService).thenReturn(mock(IdpTokenService.class));
+            IdpTokenService mockIdpTokenService = mock(IdpTokenService.class);
+            grpcUtilsMockedStatic.when(GRPCUtils::createIdpTokenService).thenReturn(mockIdpTokenService);
 
             Set<String> sharedHeaders = new HashSet<>();
 
@@ -115,17 +119,21 @@ class GRPCServerTest {
             sslUtilsMockedStatic
                     .when(() -> SSLUtils.createTrustManager(anyString(), anyString()))
                     .thenReturn(new TrustManager[] {mockTrustManager});
+            SSLContext mockSslContext = mock(SSLContext.class);
+
             sslUtilsMockedStatic
                     .when(() -> SSLUtils.createSSLContext(anyString(), anyString(), anyString(), anyString()))
-                    .thenReturn(mock(SSLContext.class));
+                    .thenReturn(mockSslContext);
 
             ServerBuilder<?> serverBuilder = mock(ServerBuilder.class, Mockito.RETURNS_SELF);
-            when(serverBuilder.build()).thenReturn(mock(Server.class));
+            Server mockServer = mock(Server.class);
+            when(serverBuilder.build()).thenReturn(mockServer);
             serverBuilderMockedStatic
                     .when(() -> ServerBuilder.forPort(any(Integer.class)))
                     .thenReturn(serverBuilder);
 
-            grpcUtilsMockedStatic.when(GRPCUtils::createIdpTokenService).thenReturn(mock(IdpTokenService.class));
+            IdpTokenService mockIdpTokenService = mock(IdpTokenService.class);
+            grpcUtilsMockedStatic.when(GRPCUtils::createIdpTokenService).thenReturn(mockIdpTokenService);
 
             Set<String> sharedHeaders = new HashSet<>();
 
