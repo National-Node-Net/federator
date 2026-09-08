@@ -77,6 +77,7 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
         String topic = request.getTopic();
         long offset = request.getOffset();
         String consumerId = GRPCContextKeys.CLIENT_ID.get();
+        streamObservable.setOnCancelHandler(() -> LOGGER.info("Cancel called by client: {}", consumerId));
         ProducerConfigDTO producerConfigDTO = getProducerConfiguration();
 
         List<AttributesDTO> consumerAttributes = getFilterAttributesForConsumer(consumerId, topic, producerConfigDTO);
