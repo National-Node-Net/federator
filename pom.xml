@@ -86,7 +86,7 @@
     <dependency.commons-codec>1.17.1</dependency.commons-codec>
     <dependency.commons-lang3>3.18.0</dependency.commons-lang3>
     <dependency.errorprone>2.36.0</dependency.errorprone>
-    <resilience4j-circuitbreaker.version>2.3.0</resilience4j-circuitbreaker.version>
+    <resilience4j-circuitbreaker.version>2.4.0</resilience4j-circuitbreaker.version>
     <gson.version>2.12.1</gson.version>
     <dependency.jna>5.17.0</dependency.jna>
     <dependency.msal4j>1.23.1</dependency.msal4j>
