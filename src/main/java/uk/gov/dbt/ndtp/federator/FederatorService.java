@@ -22,8 +22,18 @@ import uk.gov.dbt.ndtp.grpc.TopicRequest;
  * Federator service that provides methods to get Kafka consumers and file consumers.
  */
 public class FederatorService implements AutoCloseable {
-
     public static final Logger LOGGER = LoggerFactory.getLogger("FederatorService");
+
+    private static final String OPA_URL_PROPERTY = "opa.url";
+    private static final String OPA_DECISION_PATH_PROPERTY = "opa.decision-path";
+    private static final String OPA_CONNECT_TIMEOUT_PROPERTY = "opa.connect-timeout";
+    private static final String OPA_READ_TIMEOUT_PROPERTY = "opa.read-timeout";
+
+    private static final String DEFAULT_OPA_URL = "http://localhost:8181";
+    private static final String DEFAULT_OPA_DECISION_PATH = "/v1/data/producer/allow";
+    private static final String DEFAULT_OPA_CONNECT_TIMEOUT = "5";
+    private static final String DEFAULT_OPA_READ_TIMEOUT = "5";
+
     private static final ExecutorService THREADED_FILE_STREAM_SERVICE_EXECUTOR =
             ThreadUtil.threadExecutor("FileStreamService");
     private static final ExecutorService THREADED_KAFKA_STREAM_SERVICE_EXECUTOR =
@@ -32,13 +42,15 @@ public class FederatorService implements AutoCloseable {
     private final CloseableFederatorStreamService<FileStreamRequest, FileStreamEvent> fileStreamService;
 
     public FederatorService(Set<String> sharedHeaders) {
-        String opaUrl = PropertyUtil.getPropertyValue("opa.url", "http://localhost:8181");
+        String opaUrl = PropertyUtil.getPropertyValue(OPA_URL_PROPERTY, DEFAULT_OPA_URL);
 
-        String opaDecisionPath = PropertyUtil.getPropertyValue("opa.decision-path", "/v1/data/producer/allow");
+        String opaDecisionPath = PropertyUtil.getPropertyValue(OPA_DECISION_PATH_PROPERTY, DEFAULT_OPA_DECISION_PATH);
 
-        int opaConnectTimeout = Integer.parseInt(PropertyUtil.getPropertyValue("opa.connect-timeout", "5"));
+        int opaConnectTimeout = Integer.parseInt(
+                PropertyUtil.getPropertyValue(OPA_CONNECT_TIMEOUT_PROPERTY, DEFAULT_OPA_CONNECT_TIMEOUT));
 
-        int opaReadTimeout = Integer.parseInt(PropertyUtil.getPropertyValue("opa.read-timeout", "5"));
+        int opaReadTimeout =
+                Integer.parseInt(PropertyUtil.getPropertyValue(OPA_READ_TIMEOUT_PROPERTY, DEFAULT_OPA_READ_TIMEOUT));
 
         PolicyDecisionClient policyDecisionClient =
                 new OpaPolicyDecisionClient(opaUrl, opaConnectTimeout, opaReadTimeout);

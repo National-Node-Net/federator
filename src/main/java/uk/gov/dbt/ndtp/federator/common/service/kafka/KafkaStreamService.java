@@ -32,6 +32,8 @@ import uk.gov.dbt.ndtp.grpc.TopicRequest;
 
 public class KafkaStreamService extends CloseableFederatorStreamService<TopicRequest, KafkaByteBatch> {
     public static final Logger LOGGER = LoggerFactory.getLogger("KafkaStreamService");
+    private static final String POLICY_ACTION_CONSUME = "consume";
+
     private final Set<String> sharedHeaders;
     private final PolicyDecisionClient policyDecisionClient;
     private final String policyDecisionPath;
@@ -53,7 +55,7 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
                         AttributesDTO::getValue,
                         (existingValue, replacementValue) -> replacementValue));
 
-        PolicyInput policyInput = new PolicyInput(consumerId, null, resource, "consume", policyAttributes);
+        PolicyInput policyInput = new PolicyInput(consumerId, null, resource, POLICY_ACTION_CONSUME, policyAttributes);
 
         PolicyDecisionRequest policyRequest = new PolicyDecisionRequest(policyInput);
 
@@ -85,11 +87,19 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
         PolicyDecisionResponse policyDecisionResponse = evaluatePolicy(consumerId, topic, consumerAttributes);
 
         if (!Boolean.TRUE.equals(policyDecisionResponse.result())) {
-            LOGGER.warn("Policy decision DENY [clientId={}, resource={}, action=consume]", consumerId, topic);
+            LOGGER.warn(
+                    "Policy decision DENY [clientId={}, resource={}, action={}]",
+                    consumerId,
+                    topic,
+                    POLICY_ACTION_CONSUME);
             throw new SecurityException("Request denied by policy");
         }
 
-        LOGGER.info("Policy decision ALLOW [clientId={}, resource={}, action=consume]", consumerId, topic);
+        LOGGER.info(
+                "Policy decision ALLOW [clientId={}, resource={}, action={}]",
+                consumerId,
+                topic,
+                POLICY_ACTION_CONSUME);
 
         List<AttributesDTO> policyFilterAttributes = getPolicyFilterAttributes(policyDecisionResponse);
 
