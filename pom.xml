@@ -49,7 +49,7 @@
     <plugin.maven-dependency>3.8.1</plugin.maven-dependency>
     <plugin.maven-pmd>3.26.0</plugin.maven-pmd>
     <plugin.maven-surefire>3.5.3</plugin.maven-surefire>
-    <plugin.maven-shade>3.6.0</plugin.maven-shade>
+    <plugin.maven-shade>3.6.2</plugin.maven-shade>
     <plugin.protobuf-maven>0.6.1</plugin.protobuf-maven>
     <plugin.spotless>2.46.1</plugin.spotless>
     <plugin.spotless.gson>2.11.0</plugin.spotless.gson>
