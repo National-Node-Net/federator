@@ -34,15 +34,20 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
     public static final Logger LOGGER = LoggerFactory.getLogger("KafkaStreamService");
     private static final String POLICY_ACTION_CONSUME = "consume";
 
+    private final boolean policyEnforcementEnabled;
     private final Set<String> sharedHeaders;
     private final PolicyDecisionClient policyDecisionClient;
     private final String policyDecisionPath;
 
     public KafkaStreamService(
-            Set<String> sharedHeaders, PolicyDecisionClient policyDecisionClient, String policyDecisionPath) {
+            Set<String> sharedHeaders,
+            PolicyDecisionClient policyDecisionClient,
+            String policyDecisionPath,
+            boolean policyEnforcementEnabled) {
         this.sharedHeaders = sharedHeaders;
         this.policyDecisionClient = policyDecisionClient;
         this.policyDecisionPath = policyDecisionPath;
+        this.policyEnforcementEnabled = policyEnforcementEnabled;
     }
 
     private PolicyDecisionResponse evaluatePolicy(
@@ -82,26 +87,33 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
         streamObservable.setOnCancelHandler(() -> LOGGER.info("Cancel called by client: {}", consumerId));
         ProducerConfigDTO producerConfigDTO = getProducerConfiguration();
 
-        List<AttributesDTO> consumerAttributes = getFilterAttributesForConsumer(consumerId, topic, producerConfigDTO);
+        List<AttributesDTO> policyFilterAttributes = List.of();
 
-        PolicyDecisionResponse policyDecisionResponse = evaluatePolicy(consumerId, topic, consumerAttributes);
+        if (policyEnforcementEnabled) {
+            List<AttributesDTO> consumerAttributes =
+                    getFilterAttributesForConsumer(consumerId, topic, producerConfigDTO);
+            PolicyDecisionResponse policyDecisionResponse = evaluatePolicy(consumerId, topic, consumerAttributes);
 
-        if (!Boolean.TRUE.equals(policyDecisionResponse.result())) {
-            LOGGER.warn(
-                    "Policy decision DENY [clientId={}, resource={}, action={}]",
+            if (!Boolean.TRUE.equals(policyDecisionResponse.result())) {
+                LOGGER.warn(
+                        "Policy decision DENY [clientId={}, resource={}, action={}]",
+                        consumerId,
+                        topic,
+                        POLICY_ACTION_CONSUME);
+
+                throw new SecurityException("Request denied by policy");
+            }
+
+            LOGGER.info(
+                    "Policy decision ALLOW [clientId={}, resource={}, action={}]",
                     consumerId,
                     topic,
                     POLICY_ACTION_CONSUME);
-            throw new SecurityException("Request denied by policy");
+
+            policyFilterAttributes = getPolicyFilterAttributes(policyDecisionResponse);
+        } else {
+            LOGGER.info("Policy enforcement disabled; bypassing policy decision");
         }
-
-        LOGGER.info(
-                "Policy decision ALLOW [clientId={}, resource={}, action={}]",
-                consumerId,
-                topic,
-                POLICY_ACTION_CONSUME);
-
-        List<AttributesDTO> policyFilterAttributes = getPolicyFilterAttributes(policyDecisionResponse);
 
         streamObservable.setOnCancelHandler(() -> LOGGER.info("Cancel called by client: {}", consumerId));
 

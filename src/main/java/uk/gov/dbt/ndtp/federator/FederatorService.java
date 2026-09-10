@@ -24,6 +24,9 @@ import uk.gov.dbt.ndtp.grpc.TopicRequest;
 public class FederatorService implements AutoCloseable {
     public static final Logger LOGGER = LoggerFactory.getLogger("FederatorService");
 
+    private static final String POLICY_ENFORCEMENT_ENABLED_PROPERTY = "policy.enforcement.enabled";
+    private static final String DEFAULT_POLICY_ENFORCEMENT_ENABLED = "false";
+
     private static final String OPA_URL_PROPERTY = "opa.url";
     private static final String OPA_DECISION_PATH_PROPERTY = "opa.decision-path";
     private static final String OPA_CONNECT_TIMEOUT_PROPERTY = "opa.connect-timeout";
@@ -42,20 +45,28 @@ public class FederatorService implements AutoCloseable {
     private final CloseableFederatorStreamService<FileStreamRequest, FileStreamEvent> fileStreamService;
 
     public FederatorService(Set<String> sharedHeaders) {
-        String opaUrl = PropertyUtil.getPropertyValue(OPA_URL_PROPERTY, DEFAULT_OPA_URL);
+        boolean policyEnforcementEnabled = PropertyUtil.getPropertyBooleanValue(
+                POLICY_ENFORCEMENT_ENABLED_PROPERTY, DEFAULT_POLICY_ENFORCEMENT_ENABLED);
 
-        String opaDecisionPath = PropertyUtil.getPropertyValue(OPA_DECISION_PATH_PROPERTY, DEFAULT_OPA_DECISION_PATH);
+        PolicyDecisionClient policyDecisionClient = null;
+        String opaDecisionPath = null;
 
-        int opaConnectTimeout = Integer.parseInt(
-                PropertyUtil.getPropertyValue(OPA_CONNECT_TIMEOUT_PROPERTY, DEFAULT_OPA_CONNECT_TIMEOUT));
+        if (policyEnforcementEnabled) {
+            String opaUrl = PropertyUtil.getPropertyValue(OPA_URL_PROPERTY, DEFAULT_OPA_URL);
 
-        int opaReadTimeout =
-                Integer.parseInt(PropertyUtil.getPropertyValue(OPA_READ_TIMEOUT_PROPERTY, DEFAULT_OPA_READ_TIMEOUT));
+            opaDecisionPath = PropertyUtil.getPropertyValue(OPA_DECISION_PATH_PROPERTY, DEFAULT_OPA_DECISION_PATH);
 
-        PolicyDecisionClient policyDecisionClient =
-                new OpaPolicyDecisionClient(opaUrl, opaConnectTimeout, opaReadTimeout);
+            int opaConnectTimeout = Integer.parseInt(
+                    PropertyUtil.getPropertyValue(OPA_CONNECT_TIMEOUT_PROPERTY, DEFAULT_OPA_CONNECT_TIMEOUT));
 
-        this.kafkaStreamService = new KafkaStreamService(sharedHeaders, policyDecisionClient, opaDecisionPath);
+            int opaReadTimeout = Integer.parseInt(
+                    PropertyUtil.getPropertyValue(OPA_READ_TIMEOUT_PROPERTY, DEFAULT_OPA_READ_TIMEOUT));
+
+            policyDecisionClient = new OpaPolicyDecisionClient(opaUrl, opaConnectTimeout, opaReadTimeout);
+        }
+
+        this.kafkaStreamService =
+                new KafkaStreamService(sharedHeaders, policyDecisionClient, opaDecisionPath, policyEnforcementEnabled);
 
         this.fileStreamService = new FileStreamService();
     }

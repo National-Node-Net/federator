@@ -86,8 +86,8 @@ class KafkaStreamServiceTest {
 
     @Test
     void test_getFilterAttributesForConsumer_returnsAttributesForMatchingConsumerAndTopic() {
-        KafkaStreamService cut =
-                new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH);
+        KafkaStreamService cut = new KafkaStreamService(
+                EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH, true);
         List<AttributesDTO> attrs = List.of(new AttributesDTO("tenant", "alpha", "String"));
         ProducerConfigDTO cfg = buildConfig("telemetry.raw", "client-a", attrs);
 
@@ -101,8 +101,8 @@ class KafkaStreamServiceTest {
 
     @Test
     void test_getFilterAttributesForConsumer_returnsEmpty_whenNoMatchOrNulls() {
-        KafkaStreamService cut =
-                new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH);
+        KafkaStreamService cut = new KafkaStreamService(
+                EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH, true);
         // null config
         assertEquals(Collections.emptyList(), cut.getFilterAttributesForConsumer("x", "y", null));
         // config but different topic
@@ -119,16 +119,16 @@ class KafkaStreamServiceTest {
 
     @Test
     void test_hasConsumerAccessToTopic_trueWhenMatching() {
-        KafkaStreamService cut =
-                new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH);
+        KafkaStreamService cut = new KafkaStreamService(
+                EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH, true);
         ProducerConfigDTO cfg = buildConfig("dp1", "CLIENT-123", null);
         assertTrue(invokeHasConsumerAccessToTopic(cut, "client-123", "dp1", cfg));
     }
 
     @Test
     void test_hasConsumerAccessToTopic_falseWhenNoProducersOrNoMatch() {
-        KafkaStreamService cut =
-                new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH);
+        KafkaStreamService cut = new KafkaStreamService(
+                EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH, true);
         // null config
         assertFalse(invokeHasConsumerAccessToTopic(cut, "c", "t", null));
         // empty producers
@@ -146,8 +146,8 @@ class KafkaStreamServiceTest {
 
     @Test
     void test_streamToClient_throwsInvalidTopic_whenAccessDenied() {
-        KafkaStreamService cut =
-                new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH);
+        KafkaStreamService cut = new KafkaStreamService(
+                EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH, true);
         TopicRequest req =
                 TopicRequest.newBuilder().setTopic("not-allowed").setOffset(0L).build();
         StreamObservable observer = mock(StreamObservable.class);
@@ -179,8 +179,8 @@ class KafkaStreamServiceTest {
 
     @Test
     void test_streamToClient_awaitsTheFutureSubmittedToTheExecutorService() throws IOException {
-        KafkaStreamService cut =
-                new KafkaStreamService(EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH);
+        KafkaStreamService cut = new KafkaStreamService(
+                EMPTY_SHARED_HEADERS, new AllowAllPolicyDecisionClient(), POLICY_DECISION_PATH, true);
         TopicRequest req =
                 TopicRequest.newBuilder().setTopic("test").setOffset(0L).build();
         StreamObservable observer = mock(StreamObservable.class);
@@ -260,7 +260,7 @@ class KafkaStreamServiceTest {
         when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(new PolicyDecisionResponse(false, null));
 
         KafkaStreamService cut =
-                new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH);
+                new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH, true);
 
         TopicRequest req =
                 TopicRequest.newBuilder().setTopic("test").setOffset(0L).build();
@@ -300,7 +300,7 @@ class KafkaStreamServiceTest {
         when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(buildAllowPolicyDecisionResponse());
 
         KafkaStreamService cut =
-                new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH);
+                new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH, true);
 
         TopicRequest req =
                 TopicRequest.newBuilder().setTopic("test").setOffset(0L).build();
@@ -389,7 +389,7 @@ class KafkaStreamServiceTest {
         when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(buildAllowPolicyDecisionResponse());
 
         KafkaStreamService cut =
-                new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH);
+                new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH, true);
 
         TopicRequest req =
                 TopicRequest.newBuilder().setTopic("test").setOffset(0L).build();
@@ -455,7 +455,7 @@ class KafkaStreamServiceTest {
         when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(new PolicyDecisionResponse(false, null));
 
         KafkaStreamService cut =
-                new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH);
+                new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH, true);
 
         TopicRequest req =
                 TopicRequest.newBuilder().setTopic("test").setOffset(0L).build();
@@ -509,6 +509,50 @@ class KafkaStreamServiceTest {
             assertFalse(capturedRequest.input().attributes().containsKey(null));
 
             assertFalse(capturedRequest.input().attributes().containsKey("ignored"));
+        }
+    }
+
+    @Test
+    void test_streamToClient_bypassesPolicyDecision_whenPolicyEnforcementDisabled() {
+        PolicyDecisionClient policyDecisionClient = mock(PolicyDecisionClient.class);
+
+        KafkaStreamService cut =
+                new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH, false);
+
+        TopicRequest req =
+                TopicRequest.newBuilder().setTopic("test").setOffset(0L).build();
+
+        StreamObservable observer = mock(StreamObservable.class);
+        ExecutorService executorService = mock(ExecutorService.class);
+
+        ProducerConfigDTO producerConfig = buildConfig("test", "consumer-1", List.of());
+
+        ProducerConfigService mockService = mock(ProducerConfigService.class);
+
+        Future mockFuture = mock(Future.class);
+        when(executorService.submit(any(Runnable.class))).thenReturn(mockFuture);
+
+        try (MockedStatic<ProducerConsumerConfigServiceFactory> mockedFactory =
+                        Mockito.mockStatic(ProducerConsumerConfigServiceFactory.class);
+                MockedConstruction<RdfMessageConductor> mockedConductor =
+                        Mockito.mockConstruction(RdfMessageConductor.class)) {
+            mockedFactory
+                    .when(ProducerConsumerConfigServiceFactory::getProducerConfigService)
+                    .thenReturn(mockService);
+
+            when(mockService.getProducerConfiguration()).thenReturn(producerConfig);
+
+            Context ctx = Context.current().withValue(GRPCContextKeys.CLIENT_ID, "consumer-1");
+
+            Context previous = ctx.attach();
+
+            try {
+                cut.streamToClient(req, observer, executorService);
+            } finally {
+                ctx.detach(previous);
+            }
+
+            verifyNoInteractions(policyDecisionClient);
         }
     }
 }
