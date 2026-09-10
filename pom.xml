@@ -42,7 +42,7 @@
     <javadoc.failOnWarnings>true</javadoc.failOnWarnings>
     <plugin.build-helper-maven>3.6.0</plugin.build-helper-maven>
     <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
-    <plugin.exec-maven>3.5.0</plugin.exec-maven>
+    <plugin.exec-maven>3.6.3</plugin.exec-maven>
     <plugin.jacoco-maven>0.8.13</plugin.jacoco-maven>
     <plugin.javadoc>3.11.2</plugin.javadoc>
     <plugin.maven-compiler>3.14.0</plugin.maven-compiler>
