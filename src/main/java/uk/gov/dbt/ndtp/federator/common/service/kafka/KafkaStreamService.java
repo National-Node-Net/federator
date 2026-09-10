@@ -1,11 +1,18 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * © Crown Copyright 2026. This work has been developed by the National Digital Twin Programme and is legally
+ * attributed to the Department for Business and Trade (UK) as the governing entity.
+ */
 package uk.gov.dbt.ndtp.federator.common.service.kafka;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.slf4j.Logger;
@@ -14,6 +21,10 @@ import uk.gov.dbt.ndtp.federator.common.model.dto.AttributesDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ConsumerDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProducerConfigDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProductDTO;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionClient;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionRequest;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionResponse;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyInput;
 import uk.gov.dbt.ndtp.federator.common.service.stream.CloseableFederatorStreamService;
 import uk.gov.dbt.ndtp.federator.common.utils.ThreadUtil;
 import uk.gov.dbt.ndtp.federator.server.conductor.MessageConductor;
@@ -26,10 +37,49 @@ import uk.gov.dbt.ndtp.grpc.TopicRequest;
 
 public class KafkaStreamService extends CloseableFederatorStreamService<TopicRequest, KafkaByteBatch> {
     public static final Logger LOGGER = LoggerFactory.getLogger("KafkaStreamService");
-    private final Set<String> sharedHeaders;
+    private static final String POLICY_ACTION_CONSUME = "consume";
 
-    public KafkaStreamService(Set<String> sharedHeaders) {
+    private final boolean policyEnforcementEnabled;
+    private final Set<String> sharedHeaders;
+    private final PolicyDecisionClient policyDecisionClient;
+    private final String policyDecisionPath;
+
+    public KafkaStreamService(
+            Set<String> sharedHeaders,
+            PolicyDecisionClient policyDecisionClient,
+            String policyDecisionPath,
+            boolean policyEnforcementEnabled) {
         this.sharedHeaders = sharedHeaders;
+        this.policyDecisionClient = policyDecisionClient;
+        this.policyDecisionPath = policyDecisionPath;
+        this.policyEnforcementEnabled = policyEnforcementEnabled;
+    }
+
+    private PolicyDecisionResponse evaluatePolicy(
+            String consumerId, String resource, List<AttributesDTO> consumerAttributes) {
+
+        Map<String, String> policyAttributes = consumerAttributes.stream()
+                .filter(attribute -> attribute.getName() != null && attribute.getValue() != null)
+                .collect(Collectors.toMap(
+                        AttributesDTO::getName,
+                        AttributesDTO::getValue,
+                        (existingValue, replacementValue) -> replacementValue));
+
+        PolicyInput policyInput = new PolicyInput(consumerId, null, resource, POLICY_ACTION_CONSUME, policyAttributes);
+
+        PolicyDecisionRequest policyRequest = new PolicyDecisionRequest(policyInput);
+
+        return policyDecisionClient.evaluate(policyDecisionPath, policyRequest);
+    }
+
+    private List<AttributesDTO> getPolicyFilterAttributes(PolicyDecisionResponse policyDecisionResponse) {
+
+        Map<String, String> policyAttributes =
+                policyDecisionResponse.attributes() == null ? Map.of() : policyDecisionResponse.attributes();
+
+        return policyAttributes.entrySet().stream()
+                .map(entry -> new AttributesDTO(entry.getKey(), entry.getValue(), "string"))
+                .toList();
     }
 
     @Override
@@ -40,8 +90,37 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
         long offset = request.getOffset();
         String consumerId = GRPCContextKeys.CLIENT_ID.get();
         streamObservable.setOnCancelHandler(() -> LOGGER.info("Cancel called by client: {}", consumerId));
-
         ProducerConfigDTO producerConfigDTO = getProducerConfiguration();
+
+        List<AttributesDTO> policyFilterAttributes = List.of();
+
+        if (policyEnforcementEnabled) {
+            List<AttributesDTO> consumerAttributes =
+                    getFilterAttributesForConsumer(consumerId, topic, producerConfigDTO);
+            PolicyDecisionResponse policyDecisionResponse = evaluatePolicy(consumerId, topic, consumerAttributes);
+
+            if (!Boolean.TRUE.equals(policyDecisionResponse.result())) {
+                LOGGER.warn(
+                        "Policy decision DENY [clientId={}, resource={}, action={}]",
+                        consumerId,
+                        topic,
+                        POLICY_ACTION_CONSUME);
+
+                throw new SecurityException("Request denied by policy");
+            }
+
+            LOGGER.info(
+                    "Policy decision ALLOW [clientId={}, resource={}, action={}]",
+                    consumerId,
+                    topic,
+                    POLICY_ACTION_CONSUME);
+
+            policyFilterAttributes = getPolicyFilterAttributes(policyDecisionResponse);
+        } else {
+            LOGGER.info("Policy enforcement disabled; bypassing policy decision");
+        }
+
+        streamObservable.setOnCancelHandler(() -> LOGGER.info("Cancel called by client: {}", consumerId));
 
         if (!hasConsumerAccessToTopic(consumerId, topic, producerConfigDTO)) {
             String errMsg = String.format("Topic (%s) is not valid for client (%s).", topic, consumerId);
@@ -49,10 +128,9 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
             throw new InvalidTopicException(errMsg);
         }
 
-        List<AttributesDTO> filterAttributes = getFilterAttributesForConsumer(consumerId, topic, producerConfigDTO);
         ClientTopicOffsets topicData = new ClientTopicOffsets(consumerId, topic, offset);
         MessageConductor messageConductor =
-                new RdfMessageConductor(topicData, streamObservable, filterAttributes, this.sharedHeaders);
+                new RdfMessageConductor(topicData, streamObservable, policyFilterAttributes, this.sharedHeaders);
         messageConductors.add(messageConductor);
 
         List<Future<?>> futures = new ArrayList<>();

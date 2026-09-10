@@ -62,22 +62,22 @@
     <dependency.bouncycastle>1.81</dependency.bouncycastle>
     <dependency.jackson>2.18.8</dependency.jackson>
     <dependency.junit-jupiter>5.12.1</dependency.junit-jupiter>
-    <dependency.logback>1.5.24</dependency.logback>
-    <dependency.mockito>5.17.0</dependency.mockito>
+    <dependency.logback>1.5.38</dependency.logback>
+    <dependency.mockito>5.23.0</dependency.mockito>
     <dependency.lombok>1.18.38</dependency.lombok>
     <dependency.nimbusds>10.4.2</dependency.nimbusds>
     <dependency.protobuf-protoc>3.25.5</dependency.protobuf-protoc>
     <dependency.protoc-gen-grpc>1.68.0</dependency.protoc-gen-grpc>
     <dependency.redis-jedis>5.2.0</dependency.redis-jedis>
     <dependency.slf4j>2.0.17</dependency.slf4j>
-    <dependency.testcontainers>1.20.6</dependency.testcontainers>
+    <dependency.testcontainers>2.0.5</dependency.testcontainers>
     <dependency.testcontainers.redis>2.2.4</dependency.testcontainers.redis>
-    <jobrunr.version>8.0.2</jobrunr.version>
+    <jobrunr.version>8.7.1</jobrunr.version>
     <dependency.awssdk-bom>2.40.4</dependency.awssdk-bom>
     <dependency.protobuf-bom>3.25.5</dependency.protobuf-bom>
     <dependency.azure-sdk-bom>1.3.2</dependency.azure-sdk-bom>
     <dependency.aws-msk-iam-auth>2.3.5</dependency.aws-msk-iam-auth>
-    <dependency.netty-bom>4.1.136.Final</dependency.netty-bom>
+    <dependency.netty-bom>4.1.137.Final</dependency.netty-bom>
     <dependency.kotlin-bom>1.9.0</dependency.kotlin-bom>
     <dependency.google-cloud-bom>26.76.0</dependency.google-cloud-bom>
     <dependency.caffeine>3.2.0</dependency.caffeine>
@@ -88,7 +88,7 @@
     <dependency.errorprone>2.36.0</dependency.errorprone>
     <resilience4j-circuitbreaker.version>2.3.0</resilience4j-circuitbreaker.version>
     <gson.version>2.12.1</gson.version>
-    <dependency.jna>5.17.0</dependency.jna>
+    <dependency.jna>5.19.1</dependency.jna>
     <dependency.msal4j>1.23.1</dependency.msal4j>
     <dependency.animal-sniffer-annotations>1.26</dependency.animal-sniffer-annotations>
     <dependency.j2objc-annotations>3.1</dependency.j2objc-annotations>
@@ -463,7 +463,7 @@
     </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
-      <artifactId>junit-jupiter</artifactId>
+      <artifactId>testcontainers-junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -685,7 +685,9 @@
         <configuration>
           <excludes>
             <exclude>uk/gov/dbt/ndtp/grpc/*</exclude>
-            <exclude>uk/gov/dbt/ndtp/federator/*.class</exclude>
+            <exclude>uk/gov/dbt/ndtp/federator/FederatorClient*.class</exclude>
+            <exclude>uk/gov/dbt/ndtp/federator/FederatorServer*.class</exclude>
+            <exclude>uk/gov/dbt/ndtp/federator/WrappedGRPCClient.class</exclude>
             <exclude>uk/gov/dbt/ndtp/federator/grpc/*</exclude>
           </excludes>
         </configuration>

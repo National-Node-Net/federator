@@ -28,6 +28,11 @@ package uk.gov.dbt.ndtp.federator.server.conductor;
 import static org.apache.kafka.common.record.TimestampType.NO_TIMESTAMP_TYPE;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static uk.gov.dbt.ndtp.secure.agent.sources.IANodeHeaders.SECURITY_LABEL;
 
 import java.nio.charset.StandardCharsets;
@@ -38,7 +43,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import uk.gov.dbt.ndtp.federator.common.model.dto.AttributesDTO;
 import uk.gov.dbt.ndtp.federator.server.consumer.MessageConsumer;
 import uk.gov.dbt.ndtp.federator.server.processor.MessageProcessor;
@@ -137,9 +141,61 @@ class AbstractKafkaEventMessageConductorTest {
         assertFalse(conductor2.allowed(event));
     }
 
+    @Test
+    void processMessage_matchingAttributes_processesMessage() {
+        @SuppressWarnings("unchecked")
+        MessageConsumer<KafkaEvent<String, String>> messageConsumer = mock(MessageConsumer.class);
+
+        @SuppressWarnings("unchecked")
+        MessageProcessor<KafkaEvent<String, String>> messageProcessor = mock(MessageProcessor.class);
+
+        KafkaEvent<String, String> event = eventWithSecLabel("NATIONALITY=GBR,SECURITY_LABEL=OFFICIAL");
+
+        when(messageConsumer.getNextMessage()).thenReturn(event);
+
+        TestConductor conductor = new TestConductor(
+                messageConsumer,
+                messageProcessor,
+                List.of(attr("nationality", "GBR"), attr("security_label", "OFFICIAL")));
+
+        conductor.processMessage();
+
+        verify(messageProcessor).process(event);
+    }
+
+    @Test
+    void processMessage_mismatchingAttributes_doesNotProcessMessage() {
+        @SuppressWarnings("unchecked")
+        MessageConsumer<KafkaEvent<String, String>> messageConsumer = mock(MessageConsumer.class);
+
+        @SuppressWarnings("unchecked")
+        MessageProcessor<KafkaEvent<String, String>> messageProcessor = mock(MessageProcessor.class);
+
+        KafkaEvent<String, String> event = eventWithSecLabel("NATIONALITY=USA,SECURITY_LABEL=OFFICIAL");
+
+        when(messageConsumer.getNextMessage()).thenReturn(event);
+
+        TestConductor conductor = new TestConductor(
+                messageConsumer,
+                messageProcessor,
+                List.of(attr("nationality", "GBR"), attr("security_label", "OFFICIAL")));
+
+        conductor.processMessage();
+
+        verify(messageProcessor, never()).process(any());
+    }
+
     private static class TestConductor extends AbstractKafkaEventMessageConductor<String, String> {
+
         public TestConductor(List<AttributesDTO> filterAttributes) {
-            super(Mockito.mock(MessageConsumer.class), Mockito.mock(MessageProcessor.class), filterAttributes);
+            super(mock(MessageConsumer.class), mock(MessageProcessor.class), filterAttributes);
+        }
+
+        public TestConductor(
+                MessageConsumer<KafkaEvent<String, String>> messageConsumer,
+                MessageProcessor<KafkaEvent<String, String>> messageProcessor,
+                List<AttributesDTO> filterAttributes) {
+            super(messageConsumer, messageProcessor, filterAttributes);
         }
 
         public boolean allowed(KafkaEvent<String, String> event) {
