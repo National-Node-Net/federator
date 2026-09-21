@@ -26,12 +26,11 @@
 
 package uk.gov.dbt.ndtp.federator.server.conductor;
 
-import java.util.List;
 import java.util.Set;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.gov.dbt.ndtp.federator.common.model.dto.AttributesDTO;
+import uk.gov.dbt.ndtp.federator.common.policy.RowFilter;
 import uk.gov.dbt.ndtp.federator.server.consumer.ClientTopicOffsets;
 import uk.gov.dbt.ndtp.federator.server.consumer.KafkaEventMessageConsumer;
 import uk.gov.dbt.ndtp.federator.server.consumer.MessageConsumer;
@@ -55,7 +54,7 @@ public class RdfMessageConductor extends AbstractKafkaEventMessageConductor<Stri
     public RdfMessageConductor(
             ClientTopicOffsets topicData,
             StreamObservable<KafkaByteBatch> serverCallStreamObserver,
-            List<AttributesDTO> filterAttributes,
+            RowFilter rowFilter,
             Set<String> sharedHeaders) {
         this(
                 serverCallStreamObserver,
@@ -65,17 +64,17 @@ public class RdfMessageConductor extends AbstractKafkaEventMessageConductor<Stri
                         topicData.getTopic(),
                         topicData.getOffset(),
                         topicData.getClient()),
-                filterAttributes,
+                rowFilter,
                 new RdfKafkaEventMessageProcessor(serverCallStreamObserver, sharedHeaders));
     }
 
     private RdfMessageConductor(
             StreamObservable<KafkaByteBatch> serverCallStreamObserver,
             MessageConsumer<KafkaEvent<String, RdfPayload>> consumer,
-            List<AttributesDTO> filterAttributes,
+            RowFilter rowFilter,
             MessageProcessor<KafkaEvent<String, RdfPayload>> postProcessor) {
 
-        super(consumer, postProcessor, filterAttributes);
+        super(consumer, postProcessor, rowFilter);
         this.serverCallStreamObserver = serverCallStreamObserver;
     }
 

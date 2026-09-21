@@ -44,4 +44,7 @@ public class ProductDTO {
 
     @Builder.Default
     private List<ProductConsumerDTO> configurations = new ArrayList<>();
+
+    @Builder.Default
+    private List<PolicyAttributeDTO> policyAttributes = new ArrayList<>();
 }

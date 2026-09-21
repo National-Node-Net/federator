@@ -38,7 +38,7 @@ public class FederatorService implements AutoCloseable {
     private static final String OPA_READ_TIMEOUT_PROPERTY = "opa.read-timeout";
 
     private static final String DEFAULT_OPA_URL = "http://localhost:8181";
-    private static final String DEFAULT_OPA_DECISION_PATH = "/v1/data/producer/allow";
+    private static final String DEFAULT_OPA_DECISION_PATH = "/v1/data/producer/decision";
     private static final String DEFAULT_OPA_CONNECT_TIMEOUT = "5";
     private static final String DEFAULT_OPA_READ_TIMEOUT = "5";
 

@@ -25,8 +25,14 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProducerDTO {
+
     @Builder.Default
     private List<ProductDTO> products = new ArrayList<>();
+
+    @Builder.Default
+    private List<PolicyAttributeDTO> policyAttributes = new ArrayList<>();
+
+    private OrganisationDTO organisation;
 
     @JsonIgnore
     private Long id;

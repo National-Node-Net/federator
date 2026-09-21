@@ -5,4 +5,4 @@
  */
 package uk.gov.dbt.ndtp.federator.common.policy;
 
-public record PolicyInput(PolicySubject subject, String action, PolicyResource resource, PolicyRequest request) {}
+public record PolicyAttribute(String namespace, String name, String value) {}

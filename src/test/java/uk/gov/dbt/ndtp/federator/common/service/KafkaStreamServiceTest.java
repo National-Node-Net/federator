@@ -30,13 +30,18 @@ import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import uk.gov.dbt.ndtp.federator.common.model.dto.AttributesDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ConsumerDTO;
+import uk.gov.dbt.ndtp.federator.common.model.dto.OrganisationDTO;
+import uk.gov.dbt.ndtp.federator.common.model.dto.PolicyAttributeDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProducerConfigDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProducerDTO;
+import uk.gov.dbt.ndtp.federator.common.model.dto.ProductConsumerDTO;
 import uk.gov.dbt.ndtp.federator.common.model.dto.ProductDTO;
 import uk.gov.dbt.ndtp.federator.common.policy.AllowAllPolicyDecisionClient;
+import uk.gov.dbt.ndtp.federator.common.policy.PolicyAttribute;
 import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionClient;
 import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionRequest;
 import uk.gov.dbt.ndtp.federator.common.policy.PolicyDecisionResponse;
+import uk.gov.dbt.ndtp.federator.common.policy.RowFilter;
 import uk.gov.dbt.ndtp.federator.common.service.config.ProducerConfigService;
 import uk.gov.dbt.ndtp.federator.common.service.kafka.KafkaStreamService;
 import uk.gov.dbt.ndtp.federator.common.utils.ProducerConsumerConfigServiceFactory;
@@ -49,7 +54,7 @@ import uk.gov.dbt.ndtp.grpc.TopicRequest;
 class KafkaStreamServiceTest {
 
     private static final Set<String> EMPTY_SHARED_HEADERS = Set.of();
-    private static final String POLICY_DECISION_PATH = "/v1/data/producer/allow";
+    private static final String POLICY_DECISION_PATH = "/v1/data/producer/decision";
 
     // -------------------- Helper reflection methods --------------------
 
@@ -66,12 +71,17 @@ class KafkaStreamServiceTest {
     }
 
     private ProducerConfigDTO buildConfig(String topic, String consumerId, List<AttributesDTO> attrs) {
-        ConsumerDTO cons = ConsumerDTO.builder().idpClientId(consumerId).build();
+        ConsumerDTO cons = ConsumerDTO.builder().id(1L).idpClientId(consumerId).build();
         if (attrs != null) {
             cons.getAttributes().addAll(attrs);
         }
-        ProductDTO product =
-                ProductDTO.builder().topic(topic).consumers(new ArrayList<>()).build();
+        ProductDTO product = ProductDTO.builder()
+                .name("Test Product")
+                .topic(topic)
+                .source("test-source")
+                .type("test-type")
+                .consumers(new ArrayList<>())
+                .build();
         product.getConsumers().add(cons);
         ProducerDTO producer = ProducerDTO.builder().products(new ArrayList<>()).build();
         producer.getProducts().add(product);
@@ -79,11 +89,7 @@ class KafkaStreamServiceTest {
     }
 
     private PolicyDecisionResponse buildAllowPolicyDecisionResponse() {
-        return new PolicyDecisionResponse(
-                true,
-                Map.of(
-                        "security_label", "OFFICIAL",
-                        "nationality", "GBR"));
+        return new PolicyDecisionResponse(true, null, "test-policy/1.0.0", List.of("access.granted"));
     }
 
     // -------------------- Tests for getFilterAttributesForConsumer --------------------
@@ -261,7 +267,8 @@ class KafkaStreamServiceTest {
     @Test
     void test_streamToClient_throwsSecurityException_whenPolicyDenies() {
         PolicyDecisionClient policyDecisionClient = mock(PolicyDecisionClient.class);
-        when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(new PolicyDecisionResponse(false, null));
+        when(policyDecisionClient.evaluate(anyString(), any()))
+                .thenReturn(new PolicyDecisionResponse(false, null, "test-policy/1.0.0", List.of("access.denied")));
 
         KafkaStreamService cut =
                 new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH, true);
@@ -387,10 +394,13 @@ class KafkaStreamServiceTest {
     }
 
     @Test
-    void test_streamToClient_usesPolicyAttributesForFiltering() {
+    void test_streamToClient_usesPolicyRowFilterForFiltering() {
         PolicyDecisionClient policyDecisionClient = mock(PolicyDecisionClient.class);
+        RowFilter rowFilter = mock(RowFilter.class);
 
-        when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(buildAllowPolicyDecisionResponse());
+        when(policyDecisionClient.evaluate(anyString(), any()))
+                .thenReturn(
+                        new PolicyDecisionResponse(true, rowFilter, "test-policy/1.0.0", List.of("access.granted")));
 
         KafkaStreamService cut =
                 new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH, true);
@@ -437,26 +447,18 @@ class KafkaStreamServiceTest {
             assertEquals(1, mockedConductor.constructed().size());
             assertEquals(1, constructorArguments.size());
 
-            @SuppressWarnings("unchecked")
-            List<AttributesDTO> filterAttributes =
-                    (List<AttributesDTO>) constructorArguments.get(0).get(2);
+            RowFilter filterPassedToConductor =
+                    (RowFilter) constructorArguments.get(0).get(2);
 
-            assertEquals(2, filterAttributes.size());
-
-            assertTrue(filterAttributes.stream()
-                    .anyMatch(attribute ->
-                            "security_label".equals(attribute.getName()) && "OFFICIAL".equals(attribute.getValue())));
-
-            assertTrue(filterAttributes.stream()
-                    .anyMatch(attribute ->
-                            "nationality".equals(attribute.getName()) && "GBR".equals(attribute.getValue())));
+            assertSame(rowFilter, filterPassedToConductor);
         }
     }
 
     @Test
-    void test_streamToClient_passesConsumerAttributesToPolicyDecision() {
+    void test_streamToClient_buildsStructuredPolicyInput() {
         PolicyDecisionClient policyDecisionClient = mock(PolicyDecisionClient.class);
-        when(policyDecisionClient.evaluate(anyString(), any())).thenReturn(new PolicyDecisionResponse(false, null));
+        when(policyDecisionClient.evaluate(anyString(), any()))
+                .thenReturn(new PolicyDecisionResponse(false, null, "test-policy/1.0.0", List.of("access.denied")));
 
         KafkaStreamService cut =
                 new KafkaStreamService(EMPTY_SHARED_HEADERS, policyDecisionClient, POLICY_DECISION_PATH, true);
@@ -476,6 +478,98 @@ class KafkaStreamServiceTest {
                 new AttributesDTO("clearance", "1", "string"));
 
         ProducerConfigDTO producerConfig = buildConfig("test", "consumer-1", attributes);
+
+        ProducerDTO producer = producerConfig.getProducers().get(0);
+
+        producer.setPolicyAttributes(List.of(PolicyAttributeDTO.builder()
+                .namespace("policy")
+                .name("producer_region")
+                .value("south-west")
+                .build()));
+
+        producer.setOrganisation(OrganisationDTO.builder()
+                .name("Bristol City Council")
+                .key("BCC")
+                .policyAttributes(List.of(PolicyAttributeDTO.builder()
+                        .namespace("policy")
+                        .name("organisation_type")
+                        .value("local-authority")
+                        .build()))
+                .build());
+
+        ProductDTO product = producerConfig.getProducers().get(0).getProducts().get(0);
+
+        product.setConfigurations(List.of(ProductConsumerDTO.builder()
+                .consumerId(1L)
+                .policyAttributes(List.of(PolicyAttributeDTO.builder()
+                        .namespace("policy")
+                        .name("subscription_scope")
+                        .value("planning")
+                        .build()))
+                .build()));
+
+        product.setPolicyAttributes(List.of(
+                PolicyAttributeDTO.builder()
+                        .namespace("policy")
+                        .name("classification")
+                        .value("OFFICIAL")
+                        .build(),
+                PolicyAttributeDTO.builder()
+                        .namespace("policy")
+                        .name("sector")
+                        .value("planning")
+                        .build()));
+
+        ConsumerDTO consumer = producerConfig
+                .getProducers()
+                .get(0)
+                .getProducts()
+                .get(0)
+                .getConsumers()
+                .get(0);
+
+
+        consumer.setPolicyAttributes(List.of(
+                PolicyAttributeDTO.builder()
+                        .namespace("policy")
+                        .name("nationality")
+                        .value("GBR")
+                        .build(),
+                PolicyAttributeDTO.builder()
+                        .namespace("policy")
+                        .name("clearance")
+                        .value("0")
+                        .build(),
+                PolicyAttributeDTO.builder()
+                        .namespace("policy")
+                        .name("organisation_type")
+                        .value("NON-GOV3")
+                        .build(),
+                PolicyAttributeDTO.builder()
+                        .namespace("policy")
+                        .name(null)
+                        .value("ignored")
+                        .build(),
+                PolicyAttributeDTO.builder()
+                        .namespace("policy")
+                        .name("ignored")
+                        .value(null)
+                        .build(),
+                PolicyAttributeDTO.builder()
+                        .namespace("policy")
+                        .name("clearance")
+                        .value("1")
+                        .build()));
+
+        consumer.setOrganisation(OrganisationDTO.builder()
+                .name("Health Education England")
+                .key("HEG")
+                .policyAttributes(List.of(PolicyAttributeDTO.builder()
+                        .namespace("policy")
+                        .name("organisation_type")
+                        .value("public-body")
+                        .build()))
+                .build());
 
         ProducerConfigService mockService = mock(ProducerConfigService.class);
 
@@ -504,15 +598,70 @@ class KafkaStreamServiceTest {
 
             PolicyDecisionRequest capturedRequest = requestCaptor.getValue();
 
-            assertEquals("GBR", capturedRequest.input().attributes().get("nationality"));
+            assertTrue(capturedRequest.input().resource().attributes().stream()
+                    .anyMatch(attribute ->
+                            "classification".equals(attribute.name()) && "OFFICIAL".equals(attribute.value())));
 
-            assertEquals("1", capturedRequest.input().attributes().get("clearance"));
+            assertTrue(capturedRequest.input().resource().attributes().stream()
+                    .anyMatch(attribute -> "sector".equals(attribute.name()) && "planning".equals(attribute.value())));
 
-            assertEquals("NON-GOV3", capturedRequest.input().attributes().get("organisation_type"));
+            assertEquals("test", capturedRequest.input().request().body().get("topic"));
+            assertEquals(0L, capturedRequest.input().request().body().get("offset"));
 
-            assertFalse(capturedRequest.input().attributes().containsKey(null));
+            Map<String, Object> subscription = (Map<String, Object>)
+                    capturedRequest.input().request().body().get("subscription");
 
-            assertFalse(capturedRequest.input().attributes().containsKey("ignored"));
+            assertNotNull(subscription);
+
+            List<PolicyAttribute> subscriptionPolicyAttributes =
+                    (List<PolicyAttribute>) subscription.get("policyAttributes");
+
+            assertTrue(subscriptionPolicyAttributes.stream()
+                    .anyMatch(attribute ->
+                            "subscription_scope".equals(attribute.name()) && "planning".equals(attribute.value())));
+
+            assertEquals("client", capturedRequest.input().subject().kind());
+            assertEquals("consumer-1", capturedRequest.input().subject().userId());
+
+            assertEquals("consume", capturedRequest.input().action());
+
+            assertEquals("product", capturedRequest.input().resource().kind());
+
+            assertNotNull(capturedRequest.input().resource().producer());
+
+            assertTrue(capturedRequest.input().resource().producer().attributes().stream()
+                    .anyMatch(attribute ->
+                            "producer_region".equals(attribute.name()) && "south-west".equals(attribute.value())));
+
+            assertNotNull(capturedRequest.input().resource().producer().organisation());
+
+            assertEquals(
+                    "Bristol City Council",
+                    capturedRequest.input().resource().producer().organisation().name());
+
+            assertEquals(
+                    "BCC",
+                    capturedRequest.input().resource().producer().organisation().key());
+
+            assertTrue(capturedRequest.input().resource().producer().organisation().attributes().stream()
+                    .anyMatch(attribute -> "organisation_type".equals(attribute.name())
+                            && "local-authority".equals(attribute.value())));
+
+            assertTrue(capturedRequest.input().subject().attributes().stream()
+                    .anyMatch(attribute -> "nationality".equals(attribute.name()) && "GBR".equals(attribute.value())));
+
+            assertTrue(capturedRequest.input().subject().attributes().stream()
+                    .anyMatch(attribute -> "clearance".equals(attribute.name()) && "1".equals(attribute.value())));
+
+            assertTrue(capturedRequest.input().subject().attributes().stream()
+                    .anyMatch(attribute ->
+                            "organisation_type".equals(attribute.name()) && "NON-GOV3".equals(attribute.value())));
+
+            assertFalse(capturedRequest.input().subject().attributes().stream()
+                    .anyMatch(attribute -> attribute.name() == null));
+
+            assertFalse(capturedRequest.input().subject().attributes().stream()
+                    .anyMatch(attribute -> "ignored".equals(attribute.name())));
         }
     }
 

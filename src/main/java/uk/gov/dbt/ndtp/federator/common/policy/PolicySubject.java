@@ -7,9 +7,11 @@ package uk.gov.dbt.ndtp.federator.common.policy;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
+import java.util.Map;
 
-public record PolicyDecisionResponse(
-        Boolean allow,
-        @JsonProperty("row_filter") RowFilter rowFilter,
-        @JsonProperty("policy_version") String policyVersion,
-        List<String> reasons) {}
+public record PolicySubject(
+        String kind,
+        @JsonProperty("user_id") String userId,
+        Map<String, Object> token,
+        List<PolicyAttribute> attributes,
+        PolicyOrganisation organisation) {}

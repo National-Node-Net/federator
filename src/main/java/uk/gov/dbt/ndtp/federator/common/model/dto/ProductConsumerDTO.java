@@ -25,7 +25,13 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProductConsumerDTO {
-    private final List<AttributesDTO> attributes = new ArrayList<>();
+
+    @Builder.Default
+    private List<AttributesDTO> attributes = new ArrayList<>();
+
+    @Builder.Default
+    private List<PolicyAttributeDTO> policyAttributes = new ArrayList<>();
+
     private Long productId;
     private Long consumerId;
     private Timestamp grantedTs;
