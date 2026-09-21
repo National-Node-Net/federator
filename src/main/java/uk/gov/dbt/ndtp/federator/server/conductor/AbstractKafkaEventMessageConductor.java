@@ -180,7 +180,7 @@ public abstract class AbstractKafkaEventMessageConductor<K, V>
             return false;
         }
 
-        return comparison.values().stream().map(String::valueOf).anyMatch(value -> actualValue.equalsIgnoreCase(value));
+        return comparison.values().stream().map(String::valueOf).anyMatch(actualValue::equalsIgnoreCase);
     }
 
     private boolean evaluateGroup(RowFilterGroup group, Map<String, String> headerMap) {
