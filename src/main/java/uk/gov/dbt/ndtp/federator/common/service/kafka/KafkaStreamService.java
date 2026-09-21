@@ -310,10 +310,7 @@ public class KafkaStreamService extends CloseableFederatorStreamService<TopicReq
     }
 
     private ProductConsumerDTO getSubscriptionForProduct(ProductDTO product, ConsumerDTO consumer) {
-        if (product == null
-                || consumer == null
-                || consumer.getId() == null
-                || product.getConfigurations() == null) {
+        if (product == null || consumer == null || consumer.getId() == null || product.getConfigurations() == null) {
             return null;
         }
 

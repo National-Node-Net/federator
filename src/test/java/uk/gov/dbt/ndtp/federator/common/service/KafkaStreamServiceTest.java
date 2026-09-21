@@ -528,7 +528,6 @@ class KafkaStreamServiceTest {
                 .getConsumers()
                 .get(0);
 
-
         consumer.setPolicyAttributes(List.of(
                 PolicyAttributeDTO.builder()
                         .namespace("policy")
