@@ -34,6 +34,9 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.gov.dbt.ndtp.federator.common.model.dto.AttributesDTO;
+import uk.gov.dbt.ndtp.federator.common.policy.RowFilter;
+import uk.gov.dbt.ndtp.federator.common.policy.RowFilterComparison;
+import uk.gov.dbt.ndtp.federator.common.policy.RowFilterGroup;
 import uk.gov.dbt.ndtp.federator.exceptions.MessageProcessingException;
 import uk.gov.dbt.ndtp.federator.server.consumer.MessageConsumer;
 import uk.gov.dbt.ndtp.federator.server.processor.MessageProcessor;
@@ -51,12 +54,22 @@ public abstract class AbstractKafkaEventMessageConductor<K, V>
         extends AbstractMessageConductor<KafkaEvent<?, ?>, KafkaEvent<K, V>> {
 
     public static final Logger LOGGER = LoggerFactory.getLogger("AbstractKafkaEventMessageProcessor");
+    protected final RowFilter rowFilter;
+
+    AbstractKafkaEventMessageConductor(
+            MessageConsumer<KafkaEvent<K, V>> consumer,
+            MessageProcessor<KafkaEvent<K, V>> postProcessor,
+            RowFilter rowFilter) {
+        super(consumer, postProcessor, List.of());
+        this.rowFilter = rowFilter;
+    }
 
     AbstractKafkaEventMessageConductor(
             MessageConsumer<KafkaEvent<K, V>> consumer,
             MessageProcessor<KafkaEvent<K, V>> postProcessor,
             List<AttributesDTO> filterAttributes) {
         super(consumer, postProcessor, filterAttributes);
+        this.rowFilter = null;
     }
 
     @Override
@@ -89,46 +102,100 @@ public abstract class AbstractKafkaEventMessageConductor<K, V>
                 String headers = kafkaEvent.headers().map(Header::toString).collect(Collectors.joining(","));
                 LOGGER.info("Processed message. Offset: '{}'. Key: '{}'. Kafka Header: '{}'", offset, key, headers);
             } else {
-                LOGGER.warn("Filtering out message due to attribute filter. Offset: '{}'. Key: '{}'", offset, key);
+                LOGGER.warn("Filtering out message due to policy filter. Offset: '{}'. Key: '{}'", offset, key);
             }
         }
     }
 
     /**
-     * Determines whether the given Kafka event should be allowed through based on header attributes.
-     * Rules:
-     * 1) If no filterAttributes are configured, allow all messages.
-     * 2) If one attribute is set, require the corresponding header key to exist and value to match.
-     * 3) If multiple attributes are set, require ALL of them to match (AND semantics).
+     * Determines whether the given Kafka event should be allowed through.
+     *
+     * <p>If a row filter is configured, it is evaluated against the message's
+     * security-label attributes. Otherwise, the legacy attribute filtering
+     * behaviour is used.
      */
     protected boolean isEventAllowed(KafkaEvent<K, V> kafkaEvent) {
-        if (filterAttributes == null || filterAttributes.isEmpty()) {
-            return true; // Rule 1
-        }
-
         String secLabel = getSecurityLabelFromHeaders(kafkaEvent.headers());
         LOGGER.debug("Processing Message. SecLabel for message {}", secLabel);
 
         Map<String, String> headerMap = getMapFromSecurityLabel(secLabel);
+
+        if (rowFilter != null) {
+            LOGGER.debug("Headers map: {} , Row filter: {}", headerMap, rowFilter);
+            return evaluateRowFilter(rowFilter, headerMap);
+        }
+
+        // Legacy filtering path used by FileConductor
+        if (filterAttributes == null || filterAttributes.isEmpty()) {
+            return true;
+        }
+
         LOGGER.debug("Headers map: {} , Filtering attributes: {}", headerMap, filterAttributes);
 
-        // AND semantics across all configured attributes
         for (AttributesDTO attr : filterAttributes) {
-            if (attr == null) continue; // ignore null entries defensively
+            if (attr == null) {
+                continue;
+            }
+
             String name = attr.getName();
             String expectedValue = attr.getValue();
+
             if (name == null || expectedValue == null) {
-                return false; // invalid filter definition => do not allow
+                return false;
             }
+
             String actual = headerMap.get(name.toUpperCase(Locale.ROOT));
+
             if (actual == null) {
                 LOGGER.info("Header '{}' missing for required attribute '{}'", name, expectedValue);
-                return false; // header missing for required attribute
+                return false;
             }
+
             if (!actual.equalsIgnoreCase(expectedValue)) {
-                return false; // value mismatch
+                return false;
             }
         }
+
         return true;
+    }
+
+    private boolean evaluateRowFilter(RowFilter filter, Map<String, String> headerMap) {
+        if (filter instanceof RowFilterComparison comparison) {
+            return evaluateComparison(comparison, headerMap);
+        }
+        if (filter instanceof RowFilterGroup group) {
+            return evaluateGroup(group, headerMap);
+        }
+        return false;
+    }
+
+    private boolean evaluateComparison(RowFilterComparison comparison, Map<String, String> headerMap) {
+        if (comparison.attribute() == null || comparison.values() == null) {
+            return false;
+        }
+
+        String actualValue = headerMap.get(comparison.attribute().toUpperCase(Locale.ROOT));
+
+        if (actualValue == null) {
+            return false;
+        }
+
+        return comparison.values().stream().map(String::valueOf).anyMatch(actualValue::equalsIgnoreCase);
+    }
+
+    private boolean evaluateGroup(RowFilterGroup group, Map<String, String> headerMap) {
+        if (group.combinator() == null || group.nodes() == null) {
+            return false;
+        }
+
+        if ("and".equalsIgnoreCase(group.combinator())) {
+            return group.nodes().stream().allMatch(node -> evaluateRowFilter(node, headerMap));
+        }
+
+        if ("or".equalsIgnoreCase(group.combinator())) {
+            return group.nodes().stream().anyMatch(node -> evaluateRowFilter(node, headerMap));
+        }
+
+        return false;
     }
 }

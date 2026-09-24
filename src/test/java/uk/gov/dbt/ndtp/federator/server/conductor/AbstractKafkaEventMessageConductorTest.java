@@ -44,6 +44,9 @@ import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.junit.jupiter.api.Test;
 import uk.gov.dbt.ndtp.federator.common.model.dto.AttributesDTO;
+import uk.gov.dbt.ndtp.federator.common.policy.RowFilter;
+import uk.gov.dbt.ndtp.federator.common.policy.RowFilterComparison;
+import uk.gov.dbt.ndtp.federator.common.policy.RowFilterGroup;
 import uk.gov.dbt.ndtp.federator.server.consumer.MessageConsumer;
 import uk.gov.dbt.ndtp.federator.server.processor.MessageProcessor;
 import uk.gov.dbt.ndtp.secure.agent.sources.kafka.KafkaEvent;
@@ -185,6 +188,98 @@ class AbstractKafkaEventMessageConductorTest {
         verify(messageProcessor, never()).process(any());
     }
 
+    @Test
+    void processMessage_matchingRowFilter_processesMessage() {
+        @SuppressWarnings("unchecked")
+        MessageConsumer<KafkaEvent<String, String>> messageConsumer = mock(MessageConsumer.class);
+
+        @SuppressWarnings("unchecked")
+        MessageProcessor<KafkaEvent<String, String>> messageProcessor = mock(MessageProcessor.class);
+
+        KafkaEvent<String, String> event = eventWithSecLabel("CLASSIFICATION=OFFICIAL,NATIONALITY=GBR");
+
+        when(messageConsumer.getNextMessage()).thenReturn(event);
+
+        RowFilterComparison rowFilter = new RowFilterComparison("classification", List.of("OFFICIAL"));
+
+        TestConductor conductor = new TestConductor(messageConsumer, messageProcessor, rowFilter);
+
+        conductor.processMessage();
+
+        verify(messageProcessor).process(event);
+    }
+
+    @Test
+    void processMessage_mismatchingRowFilter_doesNotProcessMessage() {
+        @SuppressWarnings("unchecked")
+        MessageConsumer<KafkaEvent<String, String>> messageConsumer = mock(MessageConsumer.class);
+
+        @SuppressWarnings("unchecked")
+        MessageProcessor<KafkaEvent<String, String>> messageProcessor = mock(MessageProcessor.class);
+
+        KafkaEvent<String, String> event = eventWithSecLabel("CLASSIFICATION=SECRET,NATIONALITY=GBR");
+
+        when(messageConsumer.getNextMessage()).thenReturn(event);
+
+        RowFilterComparison rowFilter = new RowFilterComparison("classification", List.of("OFFICIAL"));
+
+        TestConductor conductor = new TestConductor(messageConsumer, messageProcessor, rowFilter);
+
+        conductor.processMessage();
+
+        verify(messageProcessor, never()).process(any());
+    }
+
+    @Test
+    void processMessage_matchingAndRowFilter_processesMessage() {
+        @SuppressWarnings("unchecked")
+        MessageConsumer<KafkaEvent<String, String>> messageConsumer = mock(MessageConsumer.class);
+
+        @SuppressWarnings("unchecked")
+        MessageProcessor<KafkaEvent<String, String>> messageProcessor = mock(MessageProcessor.class);
+
+        KafkaEvent<String, String> event = eventWithSecLabel("CLASSIFICATION=OFFICIAL,NATIONALITY=GBR");
+
+        when(messageConsumer.getNextMessage()).thenReturn(event);
+
+        RowFilterGroup rowFilter = new RowFilterGroup(
+                "and",
+                List.of(
+                        new RowFilterComparison("classification", List.of("OFFICIAL")),
+                        new RowFilterComparison("nationality", List.of("GBR"))));
+
+        TestConductor conductor = new TestConductor(messageConsumer, messageProcessor, rowFilter);
+
+        conductor.processMessage();
+
+        verify(messageProcessor).process(event);
+    }
+
+    @Test
+    void processMessage_matchingOrRowFilter_processesMessage() {
+        @SuppressWarnings("unchecked")
+        MessageConsumer<KafkaEvent<String, String>> messageConsumer = mock(MessageConsumer.class);
+
+        @SuppressWarnings("unchecked")
+        MessageProcessor<KafkaEvent<String, String>> messageProcessor = mock(MessageProcessor.class);
+
+        KafkaEvent<String, String> event = eventWithSecLabel("CLASSIFICATION=OFFICIAL,NATIONALITY=USA");
+
+        when(messageConsumer.getNextMessage()).thenReturn(event);
+
+        RowFilterGroup rowFilter = new RowFilterGroup(
+                "or",
+                List.of(
+                        new RowFilterComparison("nationality", List.of("GBR")),
+                        new RowFilterComparison("classification", List.of("OFFICIAL"))));
+
+        TestConductor conductor = new TestConductor(messageConsumer, messageProcessor, rowFilter);
+
+        conductor.processMessage();
+
+        verify(messageProcessor).process(event);
+    }
+
     private static class TestConductor extends AbstractKafkaEventMessageConductor<String, String> {
 
         public TestConductor(List<AttributesDTO> filterAttributes) {
@@ -196,6 +291,13 @@ class AbstractKafkaEventMessageConductorTest {
                 MessageProcessor<KafkaEvent<String, String>> messageProcessor,
                 List<AttributesDTO> filterAttributes) {
             super(messageConsumer, messageProcessor, filterAttributes);
+        }
+
+        public TestConductor(
+                MessageConsumer<KafkaEvent<String, String>> messageConsumer,
+                MessageProcessor<KafkaEvent<String, String>> messageProcessor,
+                RowFilter rowFilter) {
+            super(messageConsumer, messageProcessor, rowFilter);
         }
 
         public boolean allowed(KafkaEvent<String, String> event) {

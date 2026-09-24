@@ -5,10 +5,12 @@
  */
 package uk.gov.dbt.ndtp.federator.common.policy;
 
+import java.util.List;
+
 public class AllowAllPolicyDecisionClient implements PolicyDecisionClient {
 
     @Override
     public PolicyDecisionResponse evaluate(String decisionPath, PolicyDecisionRequest request) {
-        return new PolicyDecisionResponse(true, null);
+        return new PolicyDecisionResponse(true, null, null, List.of());
     }
 }

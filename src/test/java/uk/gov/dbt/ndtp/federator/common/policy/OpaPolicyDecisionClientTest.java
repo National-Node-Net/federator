@@ -6,12 +6,15 @@
 package uk.gov.dbt.ndtp.federator.common.policy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class OpaPolicyDecisionClientTest {
@@ -26,10 +29,11 @@ class OpaPolicyDecisionClientTest {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
 
         server.createContext(OPA_TEST_PATH, exchange -> {
-            byte[] response = """
-                    {"result":{"result":true,"attributes":{}}}
+            byte[] response =
                     """
-                    .getBytes(StandardCharsets.UTF_8);
+            {"result":{"allow":true,"row_filter":{"type":"comparison","attribute":"classification", "values":["OFFICIAL"]},"policy_version":"test-policy/1.0.0","reasons":["access.granted"]}}
+            """
+                            .getBytes(StandardCharsets.UTF_8);
 
             exchange.sendResponseHeaders(200, response.length);
             exchange.getResponseBody().write(response);
@@ -43,7 +47,14 @@ class OpaPolicyDecisionClientTest {
 
             PolicyDecisionResponse response = client.evaluate(OPA_TEST_PATH, createRequest());
 
-            assertEquals(Boolean.TRUE, response.result());
+            assertEquals(Boolean.TRUE, response.allow());
+
+            assertTrue(response.rowFilter() instanceof RowFilterComparison);
+
+            RowFilterComparison rowFilter = (RowFilterComparison) response.rowFilter();
+
+            assertEquals("classification", rowFilter.attribute());
+            assertEquals(List.of("OFFICIAL"), rowFilter.values());
         } finally {
             server.stop(0);
         }
@@ -54,11 +65,11 @@ class OpaPolicyDecisionClientTest {
         HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
 
         server.createContext(OPA_TEST_PATH, exchange -> {
-            byte[] response = """
-                {"result":{"result":false,"attributes":{}}}
+            byte[] response =
+                    """
+                {"result":{"allow":false,"row_filter":null,"policy_version":"test-policy/1.0.0","reasons":["access.denied"]}}
                 """
-                    .getBytes(StandardCharsets.UTF_8);
-
+                            .getBytes(StandardCharsets.UTF_8);
             exchange.sendResponseHeaders(200, response.length);
             exchange.getResponseBody().write(response);
             exchange.close();
@@ -71,7 +82,7 @@ class OpaPolicyDecisionClientTest {
 
             PolicyDecisionResponse response = client.evaluate(OPA_TEST_PATH, createRequest());
 
-            assertEquals(Boolean.FALSE, response.result());
+            assertEquals(Boolean.FALSE, response.allow());
         } finally {
             server.stop(0);
         }
@@ -93,7 +104,7 @@ class OpaPolicyDecisionClientTest {
 
             PolicyDecisionResponse response = client.evaluate(OPA_TEST_PATH, createRequest());
 
-            assertEquals(Boolean.FALSE, response.result());
+            assertEquals(Boolean.FALSE, response.allow());
         } finally {
             server.stop(0);
         }
@@ -105,7 +116,7 @@ class OpaPolicyDecisionClientTest {
 
         PolicyDecisionResponse response = client.evaluate(OPA_TEST_PATH, createRequest());
 
-        assertEquals(Boolean.FALSE, response.result());
+        assertEquals(Boolean.FALSE, response.allow());
     }
 
     @Test
@@ -130,7 +141,7 @@ class OpaPolicyDecisionClientTest {
 
             PolicyDecisionResponse response = client.evaluate(OPA_TEST_PATH, createRequest());
 
-            assertEquals(Boolean.FALSE, response.result());
+            assertEquals(Boolean.FALSE, response.allow());
         } finally {
             server.stop(0);
         }
@@ -155,14 +166,55 @@ class OpaPolicyDecisionClientTest {
 
             PolicyDecisionResponse response = client.evaluate(OPA_NULL_RESPONSE_PATH, createRequest());
 
-            assertEquals(Boolean.FALSE, response.result());
+            assertEquals(Boolean.FALSE, response.allow());
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void sendsStructuredPolicyInputToOpa() throws IOException {
+        HttpServer server = HttpServer.create(new InetSocketAddress(0), 0);
+        AtomicReference<String> requestBody = new AtomicReference<>();
+
+        server.createContext(OPA_TEST_PATH, exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+
+            byte[] response =
+                    """
+                {"result":{"allow":true,"row_filter":null,"policy_version":"test-policy/1.0.0","reasons":["access.granted"]}}
+                """
+                            .getBytes(StandardCharsets.UTF_8);
+
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+
+        server.start();
+
+        try {
+            OpaPolicyDecisionClient client = createClient(server.getAddress().getPort());
+
+            client.evaluate(OPA_TEST_PATH, createRequest());
+
+            assertEquals(
+                    """
+            {"input":{"subject":{"kind":"user","user_id":"some-client","token":{},"attributes":[],"organisation":null},"action":"some-action","resource":{"kind":"product","attributes":[],"producer":null},"request":{"headers":{},"query":{},"path":null,"body":{}}}}
+            """
+                            .trim(),
+                    requestBody.get());
         } finally {
             server.stop(0);
         }
     }
 
     private PolicyDecisionRequest createRequest() {
-        return new PolicyDecisionRequest(new PolicyInput("consumer-1", null, "test-topic", "consume", Map.of()));
+        return new PolicyDecisionRequest(new PolicyInput(
+                new PolicySubject("user", "some-client", Map.of(), List.of(), null),
+                "some-action",
+                new PolicyResource("product", List.of(), null),
+                new PolicyRequest(Map.of(), Map.of(), null, Map.of())));
     }
 
     private OpaPolicyDecisionClient createClient(int port) {

@@ -24,7 +24,14 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ConsumerDTO {
-    private final List<AttributesDTO> attributes = new ArrayList<>();
+
+    @Builder.Default
+    private List<AttributesDTO> attributes = new ArrayList<>();
+
+    @Builder.Default
+    private List<PolicyAttributeDTO> policyAttributes = new ArrayList<>();
+
+    private OrganisationDTO organisation;
 
     @JsonIgnore
     private Long id;

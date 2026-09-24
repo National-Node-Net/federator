@@ -5,4 +5,6 @@
  */
 package uk.gov.dbt.ndtp.federator.common.policy;
 
-public record PolicyInput(PolicySubject subject, String action, PolicyResource resource, PolicyRequest request) {}
+import java.util.List;
+
+public record PolicyResource(String kind, List<PolicyAttribute> attributes, PolicyProducer producer) {}

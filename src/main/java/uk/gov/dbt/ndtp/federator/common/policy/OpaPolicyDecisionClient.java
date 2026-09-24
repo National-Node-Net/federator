@@ -47,29 +47,29 @@ public class OpaPolicyDecisionClient implements PolicyDecisionClient {
             HttpResponse<String> response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                return new PolicyDecisionResponse(false, null);
+                return new PolicyDecisionResponse(false, null, null, null);
             }
 
             JsonNode root = objectMapper.readTree(response.body());
             JsonNode result = root.get("result");
 
             if (result == null || result.isNull()) {
-                return new PolicyDecisionResponse(false, null);
+                return new PolicyDecisionResponse(false, null, null, null);
             }
 
             PolicyDecisionResponse decisionResponse = objectMapper.treeToValue(result, PolicyDecisionResponse.class);
 
-            if (decisionResponse == null || !Boolean.TRUE.equals(decisionResponse.result())) {
-                return new PolicyDecisionResponse(false, null);
+            if (decisionResponse == null || !Boolean.TRUE.equals(decisionResponse.allow())) {
+                return new PolicyDecisionResponse(false, null, null, null);
             }
 
             return decisionResponse;
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return new PolicyDecisionResponse(false, null);
+            return new PolicyDecisionResponse(false, null, null, null);
         } catch (Exception e) {
-            return new PolicyDecisionResponse(false, null);
+            return new PolicyDecisionResponse(false, null, null, null);
         }
     }
 }

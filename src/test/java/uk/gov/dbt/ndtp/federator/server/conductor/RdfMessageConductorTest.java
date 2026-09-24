@@ -49,7 +49,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
-import uk.gov.dbt.ndtp.federator.common.model.dto.AttributesDTO;
+import uk.gov.dbt.ndtp.federator.common.policy.RowFilterComparison;
 import uk.gov.dbt.ndtp.federator.common.utils.KafkaUtil;
 import uk.gov.dbt.ndtp.federator.exceptions.LabelException;
 import uk.gov.dbt.ndtp.federator.server.consumer.ClientTopicOffsets;
@@ -104,8 +104,7 @@ class RdfMessageConductorTest {
     @Test
     void test_continueProcessing_whenCancelled() {
         // given
-        cut = new RdfMessageConductor(
-                topicData, mockObserver, List.of(new AttributesDTO("foo", "bar", "String")), emptySharedHeaders);
+        cut = new RdfMessageConductor(topicData, mockObserver, null, emptySharedHeaders);
         when(mockObserver.isCancelled()).thenReturn(true);
         // when
         boolean actual = cut.continueProcessing();
@@ -116,7 +115,7 @@ class RdfMessageConductorTest {
     @Test
     void test_continueProcessing_happyPath() {
         // given
-        cut = new RdfMessageConductor(topicData, mockObserver, List.of(), emptySharedHeaders);
+        cut = new RdfMessageConductor(topicData, mockObserver, null, emptySharedHeaders);
 
         when(mockObserver.isCancelled()).thenReturn(false);
         // when
@@ -130,8 +129,7 @@ class RdfMessageConductorTest {
         // given
         when(mockEventSource.isClosed()).thenReturn(false).thenReturn(true);
         when(mockEventSource.poll(any())).thenReturn(null);
-        cut = new RdfMessageConductor(
-                topicData, mockObserver, List.of(new AttributesDTO("foo", "bar", "String")), emptySharedHeaders);
+        cut = new RdfMessageConductor(topicData, mockObserver, null, emptySharedHeaders);
         // when
         cut.processMessages();
         // then
@@ -146,8 +144,9 @@ class RdfMessageConductorTest {
         when(mockEventSource.isClosed()).thenReturn(false).thenReturn(true);
         when(mockEventSource.poll(any())).thenReturn(message);
         // Set a filter that will not match the message (e.g., header "foo" = "bar")
-        List<AttributesDTO> filterAttributes = List.of(new AttributesDTO("foo", "bar", "String"));
-        cut = new RdfMessageConductor(topicData, mockObserver, filterAttributes, emptySharedHeaders);
+        RowFilterComparison rowFilter = new RowFilterComparison("foo", List.of("bar"));
+
+        cut = new RdfMessageConductor(topicData, mockObserver, rowFilter, emptySharedHeaders);
         // when
         cut.processMessages();
         // then
@@ -157,8 +156,7 @@ class RdfMessageConductorTest {
     @Test
     void test_close_happyPath() {
         // given
-        cut = new RdfMessageConductor(
-                topicData, mockObserver, List.of(new AttributesDTO("foo", "bar", "String")), emptySharedHeaders);
+        cut = new RdfMessageConductor(topicData, mockObserver, null, emptySharedHeaders);
         // when
         cut.close();
         // then
