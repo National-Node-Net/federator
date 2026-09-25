@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 # Modifications made by the National Digital Twin Programme (NDTP)
-# © Crown Copyright 2025. This work has been developed
+# © Crown Copyright 2026. This work has been developed
 
 # It is recommened to use same version as kafka broker is used.
 # So no additional images are pulled.

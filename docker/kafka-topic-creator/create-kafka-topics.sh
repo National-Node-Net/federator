@@ -18,7 +18,7 @@
 # limitations under the License.
 #
 # Modifications made by the National Digital Twin Programme (NDTP)
-# © Crown Copyright 2025. This work has been developed
+# © Crown Copyright 2026. This work has been developed
 
 # Parse string of kafka topics into an array
 # https://stackoverflow.com/a/10586169/4587961
