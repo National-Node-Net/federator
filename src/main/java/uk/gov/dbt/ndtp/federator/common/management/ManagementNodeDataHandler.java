@@ -157,29 +157,28 @@ public class ManagementNodeDataHandler implements ManagementNodeDataHandlerInter
             }
             return objectMapper.readValue(response.body(), responseType);
         } catch (ConnectException e) {
-            log.error("Connection failed [uri={}, msg={}, exception={}]", request.uri(), e.getMessage(), e.toString());
-            throw new ManagementNodeDataException("Cannot connect (check HTTPS/TLS): " + e.getMessage(), e);
+            log.warn("Connection failed [uri={}, exception={}]", request.uri(), e.toString());
+            throw new ManagementNodeDataException(
+                    "Cannot connect to " + request.uri() + " (check host/port and HTTPS/TLS): " + e, e);
         } catch (javax.net.ssl.SSLException e) {
-            log.error("SSL/TLS error [uri={}, msg={}]", request.uri(), e.getMessage());
-            throw new ManagementNodeDataException("SSL/TLS failed (check certificates): " + e.getMessage(), e);
+            log.warn("SSL/TLS error [uri={}, exception={}]", request.uri(), e.toString());
+            throw new ManagementNodeDataException(
+                    "SSL/TLS failed for " + request.uri() + " (check certificates): " + e, e);
         } catch (IOException e) {
-            log.error(
-                    "IO error [uri={}, type={}, msg={}]",
-                    request.uri(),
-                    e.getClass().getSimpleName(),
-                    e.getMessage());
-            throw new ManagementNodeDataException(ERR_RESPONSE, e);
+            log.warn("IO error [uri={}, exception={}]", request.uri(), e.toString());
+            throw new ManagementNodeDataException(ERR_RESPONSE + " from " + request.uri() + ": " + e, e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            log.error("Request interrupted [uri={}]", request.uri());
+            log.warn("Request interrupted [uri={}]", request.uri());
             throw new ManagementNodeDataException(ERR_INTERRUPTED, e);
         }
     }
 
     private void validateResponse(final HttpResponse<String> response) throws ManagementNodeDataException {
         if (response.statusCode() != HTTP_OK) {
-            log.error("HTTP error [status={}, uri={}]", response.statusCode(), response.uri());
-            throw new ManagementNodeDataException(String.format(ERR_REQUEST_FAILED, response.statusCode()));
+            log.warn("HTTP error [status={}, uri={}]", response.statusCode(), response.uri());
+            throw new ManagementNodeDataException(
+                    String.format(ERR_REQUEST_FAILED, response.statusCode()) + " [uri=" + response.uri() + "]");
         }
     }
 

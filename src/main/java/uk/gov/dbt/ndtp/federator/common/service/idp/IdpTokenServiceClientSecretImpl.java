@@ -84,8 +84,9 @@ public class IdpTokenServiceClientSecretImpl extends AbstractIdpTokenService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() != 200) {
-                throw new FederatorTokenException(
-                        String.format("Failed to fetch token: HTTP %d - %s", response.statusCode(), response.body()));
+                throw new FederatorTokenException(String.format(
+                        "Failed to fetch token from %s: HTTP %d - %s",
+                        idpTokenUrl, response.statusCode(), response.body()));
             }
             Map<String, Object> json =
                     objectMapper.readValue(response.body(), new TypeReference<Map<String, Object>>() {});
@@ -94,9 +95,11 @@ public class IdpTokenServiceClientSecretImpl extends AbstractIdpTokenService {
             return accessToken;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new FederatorTokenException("Thread interrupted while fetching token from IDP", e);
+            throw new FederatorTokenException("Thread interrupted while fetching token from IDP at " + idpTokenUrl, e);
+        } catch (FederatorTokenException e) {
+            throw e;
         } catch (Exception e) {
-            throw new FederatorTokenException("Error fetching token from IDP", e);
+            throw new FederatorTokenException("Error fetching token from IDP at " + idpTokenUrl + ": " + e, e);
         }
     }
 }

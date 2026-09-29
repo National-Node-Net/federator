@@ -20,8 +20,8 @@
 
 /*
  *  Modifications made by the National Digital Twin Programme (NDTP)
- *  © Crown Copyright 2025. This work has been developed by the National Digital Twin Programme
- *  and is legally attributed to the Department for Business and Trade (UK) as the governing entity.
+ *  © Crown Copyright 2026. This work has been developed by the National Digital Twin Programme
+ *  and is legally attributed to the UK's Department for Business, Innovation, Science and Trade (BIST) as the governing entity.
  */
 
 package uk.gov.dbt.ndtp.federator.server.grpc;
@@ -62,6 +62,10 @@ public class GRPCFederatorService extends FederatorServiceGrpc.FederatorServiceI
         this.federator = new FederatorService(sharedHeaders);
     }
 
+    GRPCFederatorService(FederatorService federator) {
+        this.federator = federator;
+    }
+
     @Override
     public void getKafkaConsumer(TopicRequest request, StreamObserver<KafkaByteBatch> responseObserver) {
 
@@ -76,6 +80,10 @@ public class GRPCFederatorService extends FederatorServiceGrpc.FederatorServiceI
             LOGGER.error("Invalid topic", e);
             responseObserver.onError(
                     Status.INVALID_ARGUMENT.withDescription(e.getMessage()).asRuntimeException());
+        } catch (SecurityException e) {
+            LOGGER.warn("Request denied by policy: {}", e.getMessage());
+            responseObserver.onError(
+                    Status.PERMISSION_DENIED.withDescription(e.getMessage()).asRuntimeException());
         }
     }
 

@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
-# © Crown Copyright 2025. This work has been developed by the National Digital Twin Programme
-# and is legally attributed to the Department for Business and Trade (UK) as the governing entity.
+# © Crown Copyright 2026. This work has been developed by the National Digital Twin Programme
+# and is legally attributed to the UK's Department for Business, Innovation, Science and Trade (BIST) as the governing entity.
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -44,7 +44,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK 21
-        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -68,7 +68,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK 21
-        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -82,12 +82,13 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+      id-token: write
     runs-on: ubuntu-latest
     needs: build
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up JDK 21
-        uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           java-version: '21'
           distribution: 'temurin'
@@ -154,6 +155,29 @@ jobs:
           severity: "CRITICAL,HIGH"
           trivyignores: .trivyignore
         continue-on-error: false
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/ecr-access-for-github
+          aws-region: ${{ secrets.AWS_REGION }}
+          role-skip-session-tagging: true
+          role-duration-seconds: 3600
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
+
+      - name: Format repo name
+        run: |
+          echo FEDERATOR_CLIENT="${{ steps.login-ecr.outputs.registry }}/ndtp/ia-federator-client" >> ${GITHUB_ENV}
+          echo FEDERATOR_SERVER="${{ steps.login-ecr.outputs.registry }}/ndtp/ia-federator-server" >> ${GITHUB_ENV}
+          echo IMAGE_TAG="${{ steps.get_version.outputs.project_version }}-$(date -u +%Y%m%d%H%M%S)" >> ${GITHUB_ENV}
+    
+      - name: Push Images To AWS/ECR        
+        run: |
+          docker tag ghcr.io/${REPO}/federator-client:staged "${FEDERATOR_CLIENT}:${IMAGE_TAG}" && docker push "${FEDERATOR_CLIENT}:${IMAGE_TAG}"
+          docker tag ghcr.io/${REPO}/federator-server:staged "${FEDERATOR_SERVER}:${IMAGE_TAG}" && docker push "${FEDERATOR_SERVER}:${IMAGE_TAG}"
 
       - name: Clean up docker image
         run: |
