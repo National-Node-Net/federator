@@ -55,12 +55,90 @@ public final class ResilienceSupport {
     private ResilienceSupport() {}
 
     private static RetryRegistry getRetryRegistry() {
-        return retryRegistry.updateAndGet(current -> current != null ? current : RetryRegistry.of(buildRetryConfig()));
+        return retryRegistry.updateAndGet(current -> current != null ? current : newRetryRegistry());
     }
 
     private static CircuitBreakerRegistry getCircuitBreakerRegistry() {
-        return circuitBreakerRegistry.updateAndGet(
-                current -> current != null ? current : CircuitBreakerRegistry.of(buildCircuitBreakerConfig()));
+        return circuitBreakerRegistry.updateAndGet(current -> current != null ? current : newCircuitBreakerRegistry());
+    }
+
+    private static RetryRegistry newRetryRegistry() {
+        RetryRegistry registry = RetryRegistry.of(buildRetryConfig());
+        registry.getEventPublisher().onEntryAdded(event -> registerRetryEventLogging(event.getAddedEntry()));
+        return registry;
+    }
+
+    private static CircuitBreakerRegistry newCircuitBreakerRegistry() {
+        CircuitBreakerRegistry registry = CircuitBreakerRegistry.of(buildCircuitBreakerConfig());
+        registry.getEventPublisher().onEntryAdded(event -> registerCircuitBreakerEventLogging(event.getAddedEntry()));
+        return registry;
+    }
+
+    /**
+     * Logs every failed attempt at WARN with the underlying cause and full stack trace,
+     * so connectivity problems (DNS, refused connection, TLS, HTTP status) are visible while retrying.
+     */
+    private static void registerRetryEventLogging(Retry retry) {
+        final String name = retry.getName();
+        final int maxAttempts = retry.getRetryConfig().getMaxAttempts();
+        retry.getEventPublisher()
+                .onRetry(event -> LOG.warn(
+                        "Resilience retry [{}]: attempt {} of {} failed, retrying in {} ms. Cause: {}",
+                        name,
+                        event.getNumberOfRetryAttempts(),
+                        maxAttempts,
+                        event.getWaitInterval().toMillis(),
+                        describeCause(event.getLastThrowable()),
+                        event.getLastThrowable()))
+                .onError(event -> LOG.warn(
+                        "Resilience retry [{}]: giving up after {} attempt(s). Cause: {}",
+                        name,
+                        event.getNumberOfRetryAttempts(),
+                        describeCause(event.getLastThrowable()),
+                        event.getLastThrowable()))
+                .onIgnoredError(event -> LOG.warn(
+                        "Resilience retry [{}]: failure is not retryable (see "
+                                + PROP_RETRY_ON
+                                + "), not retrying. Cause: {}",
+                        name,
+                        describeCause(event.getLastThrowable()),
+                        event.getLastThrowable()));
+    }
+
+    private static void registerCircuitBreakerEventLogging(CircuitBreaker circuitBreaker) {
+        final String name = circuitBreaker.getName();
+        circuitBreaker
+                .getEventPublisher()
+                .onStateTransition(event -> LOG.warn(
+                        "Resilience circuit breaker [{}]: state changed {} (failure rate {}%)",
+                        name,
+                        event.getStateTransition(),
+                        circuitBreaker.getMetrics().getFailureRate()));
+    }
+
+    /**
+     * Builds a one-line description of the whole cause chain, e.g.
+     * {@code FederatorTokenException: Error fetching token -> ConnectException: Connection refused}.
+     * Many JDK network exceptions have a null message, so the class name is always included.
+     */
+    static String describeCause(Throwable ex) {
+        if (ex == null) {
+            return "unknown";
+        }
+        StringBuilder sb = new StringBuilder();
+        java.util.Set<Throwable> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        Throwable current = ex;
+        while (current != null && seen.add(current)) {
+            if (!sb.isEmpty()) {
+                sb.append(" -> ");
+            }
+            sb.append(current.getClass().getSimpleName());
+            if (current.getMessage() != null && !current.getMessage().isBlank()) {
+                sb.append(": ").append(current.getMessage());
+            }
+            current = current.getCause();
+        }
+        return sb.toString();
     }
 
     private static RetryConfig buildRetryConfig() {
@@ -101,7 +179,7 @@ public final class ResilienceSupport {
             long max = maxBackoff.toMillis();
             long factor = 1L << Math.clamp(attempt - 1L, 0L, 30L);
             long next = min(base * factor, max);
-            LOG.info("Resilience retry: attempt {} will wait {} ms before next try (cap {} ms)", attempt, next, max);
+            LOG.debug("Resilience retry: attempt {} will wait {} ms before next try (cap {} ms)", attempt, next, max);
             return next;
         };
     }

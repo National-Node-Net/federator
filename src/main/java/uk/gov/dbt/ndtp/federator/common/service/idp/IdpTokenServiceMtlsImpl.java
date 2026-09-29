@@ -86,8 +86,8 @@ public class IdpTokenServiceMtlsImpl extends AbstractIdpTokenService {
 
             if (response.statusCode() != 200) {
                 throw new FederatorTokenException(String.format(
-                        "Failed to fetch token for management node %s. Response: %s",
-                        managementNodeId, response.body()));
+                        "Failed to fetch token for management node %s from %s: HTTP %d - %s",
+                        managementNodeId, idpTokenUrl, response.statusCode(), response.body()));
             }
 
             Map<String, Object> json =
@@ -107,10 +107,15 @@ public class IdpTokenServiceMtlsImpl extends AbstractIdpTokenService {
 
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new FederatorTokenException("Thread interrupted while fetching token from IDP", e);
+            throw new FederatorTokenException("Thread interrupted while fetching token from IDP at " + idpTokenUrl, e);
+        } catch (FederatorTokenException e) {
+            throw e;
         } catch (Exception e) {
             throw new FederatorTokenException(
-                    String.format("Error fetching token from IDP for management node %s", managementNodeId), e);
+                    String.format(
+                            "Error fetching token from IDP at %s for management node %s: %s",
+                            idpTokenUrl, managementNodeId, e),
+                    e);
         }
     }
 
