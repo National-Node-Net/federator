@@ -93,7 +93,7 @@
     <dependency.animal-sniffer-annotations>1.28</dependency.animal-sniffer-annotations>
     <dependency.j2objc-annotations>3.1</dependency.j2objc-annotations>
     <dependency.opentelemetry>1.51.0</dependency.opentelemetry>
-    <dependency.kafka-client>4.2.0</dependency.kafka-client>
+    <dependency.kafka-client>4.3.1</dependency.kafka-client>
 
   </properties>
   <dependencyManagement>
