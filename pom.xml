@@ -92,7 +92,7 @@
     <dependency.msal4j>1.23.1</dependency.msal4j>
     <dependency.animal-sniffer-annotations>1.26</dependency.animal-sniffer-annotations>
     <dependency.j2objc-annotations>3.1</dependency.j2objc-annotations>
-    <dependency.opentelemetry>1.51.0</dependency.opentelemetry>
+    <dependency.opentelemetry>1.62.0</dependency.opentelemetry>
     <dependency.kafka-client>4.2.0</dependency.kafka-client>
 
   </properties>
