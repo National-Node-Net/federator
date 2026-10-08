@@ -10,11 +10,16 @@
     "aliases": []
   },
   {
-    "version": "1.2.x",
-    "title": "1.2.x",
+    "version": "dependabot-auto-merge",
+    "title": "dependabot-auto-merge",
     "aliases": [
       "latest"
     ]
+  },
+  {
+    "version": "1.2.x",
+    "title": "1.2.x",
+    "aliases": []
   },
   {
     "version": "1.1.x",
