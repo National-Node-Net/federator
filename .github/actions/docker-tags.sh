@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 # SPDX-License-Identifier: Apache-2.0
-# © Crown Copyright 2025. This work has been developed by the National Digital Twin Programme
-# and is legally attributed to the Department for Business and Trade (UK) as the governing entity.
+# © Crown Copyright 2026. This work has been developed by the National Digital Twin Programme
+# and is legally attributed to the UK's Department for Business, Innovation, Science and Trade (BIST) as the governing entity.
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@ function usage() {
     echo "  STAGED_TAG: The tag to use as the source image (default: staged)"
 }
 
-if [ "$#" -ne 2 ]; then
+if [[ "$#" -ne 2 ]]; then
   usage
   exit 1
 fi
@@ -35,31 +35,31 @@ IMAGE="$1"
 JOINED_TAGS="$2"
 STAGED_TAG="${STAGED_TAG:-staged}"
 
-if [ -z "$IMAGE" ]; then
-  echo "Error: IMAGE is required"
+if [[ -z "$IMAGE" ]]; then
+  echo "Error: IMAGE is required" >&2
   usage
   exit 1
 fi
 
 if [[ ! "$IMAGE" =~ ^[a-zA-Z0-9_./-]+$ ]]; then
-  echo "Error: Invalid image name '$IMAGE'"
+  echo "Error: Invalid image name '$IMAGE'" >&2
   exit 1
 fi
 
-if [ -z "$JOINED_TAGS" ]; then
-  echo "Error: TAGS is required"
+if [[ -z "$JOINED_TAGS" ]]; then
+  echo "Error: TAGS is required" >&2
   usage
   exit 1
 fi
 
 if [[ ! "$STAGED_TAG" =~ ^[a-zA-Z0-9_./-]+$ ]]; then
-  echo "Error: Invalid staged tag name '$STAGED_TAG'"
+  echo "Error: Invalid staged tag name '$STAGED_TAG'" >&2
   exit 1
 fi
 
 # Check that the image exists
 if ! docker image inspect "$IMAGE:$STAGED_TAG" &> /dev/null; then
-  echo "Error: Image $IMAGE:$STAGED_TAG does not exist"
+  echo "Error: Image $IMAGE:$STAGED_TAG does not exist" >&2
   exit 1
 fi
 
@@ -71,7 +71,7 @@ for TAG in "${TAGS[@]}"; do
   # Remove all spaces from the tag
   tag="${TAG//[[:space:]]/}"
   if [[ ! "$tag" =~ ^[a-zA-Z0-9_./-]+$ ]]; then
-    echo "Error: Invalid tag name '$tag'"
+    echo "Error: Invalid tag name '$tag'" >&2
     exit 1
   fi
   echo "Applying tag: '$tag'"
