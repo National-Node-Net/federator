@@ -35,11 +35,10 @@ RUN apt-get update && \
 	rm -rf /var/lib/apt/lists/* && \
 	rm -f /usr/bin/pebble
 
-RUN mkdir -p /library/ /app/ /config/ && \
+RUN mkdir -p /library/ /app/ && \
 	groupadd appgroup && \
 	useradd -Mg appgroup federator-service && \
-	chown -R :appgroup /library/ /app/ && \
-	chown federator-service:appgroup /config/
+	chown -R :appgroup /library/ /app/
 WORKDIR /app
 ARG JAR_NAME
 COPY target/${JAR_NAME}.jar /app/app.jar
