@@ -59,14 +59,14 @@ To run the Federator client, follow these steps:
      ```zsh
      java -jar federator-client.jar
      ```
-     `${IDP_*}` placeholders are not resolved by Java; use literal values or render the file first (see [Environment Variable Placeholders](#environment-variable-placeholders)).
-   - If using Docker, mount the file as a template so the entrypoint renders the `${IDP_*}` placeholders from the environment:
+     Values are taken from environment variables where set (see [Environment Variable Placeholders](#environment-variable-placeholders)), e.g. `IDP_CLIENT_ID=... java -jar federator-client.jar`.
+   - If using Docker, mount the file and pass the environment variables to override:
      ```zsh
      docker run --env FEDERATOR_CLIENT_PROPERTIES=/config/client.properties \
                 --env IDP_CLIENT_ID=... --env IDP_TOKEN_URL=... --env IDP_JWKS_URL=... \
                 --env IDP_KEYSTORE_PATH=... --env IDP_KEYSTORE_PASSWORD=... \
                 --env IDP_TRUSTSTORE_PATH=... --env IDP_TRUSTSTORE_PASSWORD=... \
-                -v /local/config/client.properties:/config-templates/client.properties:ro \
+                -v /local/config/client.properties:/config/client.properties:ro \
                 federator-client:latest
      ```
 
@@ -97,7 +97,7 @@ The IDP properties are defined directly in `client.properties`:
 
 These settings ensure secure authentication and authorisation between Federator components and the Identity Provider, supporting both mTLS and OAuth2 flows.
 
-The client validates the IDP configuration at startup and exits with a clear error if a required property is missing or still contains an unresolved `${...}` placeholder:
+The client validates the IDP configuration at startup and exits with a clear error if a required property is missing or still contains an unresolved `${...}` placeholder (the IDP URLs, client ID and credentials have empty defaults in the sample file, so they must be provided):
 
 - Always required: `idp.token.url`, `idp.jwks.url`, `idp.client.id`
 - When `idp.mtls.enabled=true`: `idp.keystore.path`, `idp.truststore.path`
@@ -105,10 +105,25 @@ The client validates the IDP configuration at startup and exits with a clear err
 
 ### Environment Variable Placeholders
 
-The sample `client.properties` uses `${IDP_*}` placeholders (`IDP_CLIENT_ID`, `IDP_CLIENT_SECRET`, `IDP_TOKEN_URL`, `IDP_JWKS_URL`, `IDP_KEYSTORE_PATH`, `IDP_KEYSTORE_PASSWORD`, `IDP_TRUSTSTORE_PATH`, `IDP_TRUSTSTORE_PASSWORD`). Java does not resolve these itself:
+Every value in the sample `client.properties` is written as a `${ENV_VAR:default}` placeholder, which the application resolves at startup (similar to Spring Boot):
 
-- **Docker / Kubernetes:** mount the file at `/config-templates/client.properties`. The container entrypoint renders it with `envsubst` into `/config/client.properties` using the container environment.
-- **Running the jar directly:** replace the placeholders with literal values, or render the file first, e.g. `envsubst < src/configs/client.properties > /tmp/client.properties`.
+| Syntax | Meaning |
+|--------|---------|
+| `${IDP_CLIENT_ID}` | Value of `IDP_CLIENT_ID`; left unresolved if it is not set |
+| `${IDP_TOKEN_BACKOFF:1000}` | Value of `IDP_TOKEN_BACKOFF`, or `1000` if it is not set |
+| `${IDP_CLIENT_SECRET:}` | Value of `IDP_CLIENT_SECRET`, or an empty value if it is not set |
+| `https://${IDP_HOST}:${IDP_PORT:8443}/token` | Several placeholders in one value |
+| `${PRIMARY:${SECONDARY:fallback}}` | Nested defaults |
+| `${idp.base.url}/token` | Reference to another property in the same file |
+
+- Each placeholder name is looked up, in order, as a JVM system property (`-DIDP_CLIENT_ID=...`), an environment variable, then another property in the file; the default after the first `:` applies only when none is found.
+- An environment variable that is set to an empty string counts as set, so the default does not apply.
+- The sample files name each variable after its property: upper case, `.` replaced by `_` and `-` removed (e.g. `management.node.base.url` → `MANAGEMENT_NODE_BASE_URL`, `opa.decision-path` → `OPA_DECISIONPATH`).
+- To use a literal `${...}` in a value, escape it as `\\${...}` in the file.
+- Placeholders that cannot be resolved and have no default are logged at startup (property names only, never values). For the required `idp.*` properties this stops startup with an `Invalid Identity Provider configuration` error.
+- `-Dkey=value` system properties (for example `-Didp.client.id=...`) still override a whole property, before placeholders are resolved.
+
+This works the same when running the jar directly and in containers; no `envsubst` step is needed.
 
 ### Migrating from common-configuration.properties
 

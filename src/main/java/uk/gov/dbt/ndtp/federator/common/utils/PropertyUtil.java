@@ -33,6 +33,7 @@ import java.io.FileInputStream;
 import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.time.Duration;
+import java.util.List;
 import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,8 @@ import org.slf4j.LoggerFactory;
  *   The class will throw a {@link PropertyUtilException} if the properties are not initialised or if a property is missing.
  *   The class will also throw a {@link PropertyUtilException} if the properties are initialised twice.
  *   The class will also override any properties with the same key in the system properties.
+ *   Values may contain {@code ${NAME}} / {@code ${NAME:default}} placeholders, resolved from system properties,
+ *   environment variables and other properties (see {@link PropertyPlaceholderResolver}).
  *   The class also provides methods to get properties as int, long, boolean, duration and file.
  *   The class also provides a method to clear the properties for testing purposes.
  * </p>
@@ -76,17 +79,33 @@ public class PropertyUtil {
         } catch (Exception t) {
             throw new PropertyUtilException("Error loading properties from inputStream", t);
         }
-        mergeLegacyCommonConfiguration(properties);
+        PropertyPlaceholderResolver resolver = PropertyPlaceholderResolver.fromSystem();
+        mergeLegacyCommonConfiguration(properties, resolver);
         overrideSystemProperties(properties);
+        resolvePlaceholders(properties, resolver);
+    }
+
+    /**
+     * Resolves {@code ${NAME}} / {@code ${NAME:default}} placeholders from system properties, environment variables
+     * and other properties. Only key names are logged, never values, as they may hold secrets.
+     */
+    static void resolvePlaceholders(Properties properties, PropertyPlaceholderResolver resolver) {
+        List<String> unresolved = resolver.resolveAll(properties);
+        if (!unresolved.isEmpty()) {
+            LOGGER.warn(
+                    "Properties with unresolved placeholders (no matching system property or environment variable, "
+                            + "and no default): {}",
+                    unresolved.stream().sorted().toList());
+        }
     }
 
     /**
      * Fallback for older setups that still reference a separate common configuration file via
      * {@value #LEGACY_COMMON_CONFIGURATION}. Properties from that file are added only where the main file does not
-     * already define the key.
+     * already define the key. The path itself may contain placeholders, which are resolved before the file is read.
      */
-    static void mergeLegacyCommonConfiguration(Properties properties) {
-        String commonPath = properties.getProperty(LEGACY_COMMON_CONFIGURATION);
+    static void mergeLegacyCommonConfiguration(Properties properties, PropertyPlaceholderResolver resolver) {
+        String commonPath = resolver.resolve(properties.getProperty(LEGACY_COMMON_CONFIGURATION), properties);
         if (commonPath == null || commonPath.isBlank()) {
             return;
         }

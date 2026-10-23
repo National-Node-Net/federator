@@ -14,9 +14,17 @@
 - Identity Provider (`idp.*`) properties are now defined directly in
   `server.properties` / `client.properties`; the separate
   `common-configuration.properties` file is no longer required. All sample
-  configs and Docker Compose files use the single-file setup, mounting
-  property files as templates under `/config-templates/` and passing the
-  `IDP_*` variables through for `envsubst`.
+  configs and Docker Compose files use the single-file setup.
+- Property values now support Spring-style placeholders, resolved by the
+  application at startup: `${VAR}`, `${VAR:default}`, nested defaults,
+  references to other properties and `\${...}` escapes. Names are looked up
+  as system properties, then environment variables, then other properties.
+  Every value in the sample `server.properties` / `client.properties` and the
+  Docker demo configs is now an overridable `${ENV_VAR:default}` placeholder.
+- The container entrypoint no longer runs `envsubst`; files mounted under
+  `/config-templates/` are copied to `/config/` and resolved by the
+  application. `gettext-base` is no longer installed in the images. Plain
+  `$VAR` references (without braces) are no longer substituted.
 - The server and client validate the `idp.*` configuration at startup and
   fail fast with a clear error for missing properties or unresolved
   `${...}` placeholders.
@@ -28,7 +36,7 @@
 
 - The `common.configuration` property. If set, the referenced file is still
   loaded and merged (main file values win) with a deprecation warning, and
-  the entrypoint still renders `/config-templates/common-configuration.properties`.
+  the entrypoint still copies `/config-templates/common-configuration.properties`.
   This fallback will be removed in a future release.
 
 ### Fixed
@@ -36,7 +44,7 @@
 - `federator-msk` image targets failed to build because the stage re-created
   the `appgroup` group and `federator-service` user inherited from the base stage.
 - Images now create a `/config/` directory writable by the service user, so
-  the entrypoint can render templates without an external writable mount.
+  the entrypoint can copy templates without an external writable mount.
 
 ## 1.2.2 - 2026-09-01
 

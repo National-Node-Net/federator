@@ -18,17 +18,18 @@ include:
   - docker-grpc-resources/docker-compose-shared.yml
 
 name: grpc-ten-clients-single-server-performance-test
-# Identity Provider settings rendered into the mounted property templates by the
-# container entrypoint (envsubst). Set these in the shell or in .env.
+# Identity Provider settings, resolved by the application from ${IDP_*:default}
+# placeholders in the mounted properties files. Each variable is only passed to
+# the container when it is set in the shell or in .env, so the file defaults apply otherwise.
 x-idp-environment: &idp-environment
-  IDP_CLIENT_ID: ${IDP_CLIENT_ID:-}
-  IDP_CLIENT_SECRET: ${IDP_CLIENT_SECRET:-}
-  IDP_TOKEN_URL: ${IDP_TOKEN_URL:-}
-  IDP_JWKS_URL: ${IDP_JWKS_URL:-}
-  IDP_KEYSTORE_PATH: ${IDP_KEYSTORE_PATH:-}
-  IDP_KEYSTORE_PASSWORD: ${IDP_KEYSTORE_PASSWORD:-}
-  IDP_TRUSTSTORE_PATH: ${IDP_TRUSTSTORE_PATH:-}
-  IDP_TRUSTSTORE_PASSWORD: ${IDP_TRUSTSTORE_PASSWORD:-}
+  IDP_CLIENT_ID:
+  IDP_CLIENT_SECRET:
+  IDP_TOKEN_URL:
+  IDP_JWKS_URL:
+  IDP_KEYSTORE_PATH:
+  IDP_KEYSTORE_PASSWORD:
+  IDP_TRUSTSTORE_PATH:
+  IDP_TRUSTSTORE_PASSWORD:
 
 services:
 

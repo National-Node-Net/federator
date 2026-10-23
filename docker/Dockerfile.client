@@ -30,13 +30,12 @@ LABEL org.opencontainers.image.source=https://github.com/National-Node-Net/feder
 # which carries known HIGH Go stdlib CVEs and is not used by federator.
 RUN apt-get update && \
 	apt-get upgrade -y && \
-	apt-get install -y --no-install-recommends gettext-base && \
 	apt-get clean && \
 	rm -rf /var/lib/apt/lists/* && \
 	rm -f /usr/bin/pebble
 
-# /config-templates/ receives mounted property templates; the entrypoint renders
-# them (envsubst) into /config/, which must be writable by the service user.
+# /config-templates/ receives mounted (possibly read-only) properties files; the
+# entrypoint copies them into /config/, which must be writable by the service user.
 RUN mkdir -p /library/ /app/ /config/ /config-templates/ && \
 	groupadd appgroup && \
 	useradd -Mg appgroup federator-service && \
