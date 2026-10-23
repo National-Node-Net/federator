@@ -52,9 +52,7 @@ class GRPCServerTest {
             propertyUtilMockedStatic
                     .when(() -> PropertyUtil.getPropertyIntValue(GRPCServer.SERVER_KEEP_ALIVE_TIMEOUT, GRPCServer.ONE))
                     .thenReturn(1);
-            propertyUtilMockedStatic
-                    .when(() -> PropertyUtil.getPropertiesFromFilePath(any()))
-                    .thenReturn(mockNestedProps);
+            propertyUtilMockedStatic.when(() -> PropertyUtil.getIdpProperties()).thenReturn(mockNestedProps);
 
             propertyUtilMockedStatic
                     .when(() -> PropertyUtil.getPropertyValue(anyString(), anyString()))
@@ -108,9 +106,7 @@ class GRPCServerTest {
             propertyUtilMockedStatic
                     .when(() -> PropertyUtil.getPropertyValue(any()))
                     .thenReturn("dummy");
-            propertyUtilMockedStatic
-                    .when(() -> PropertyUtil.getPropertiesFromFilePath(any()))
-                    .thenReturn(mockNestedProps);
+            propertyUtilMockedStatic.when(() -> PropertyUtil.getIdpProperties()).thenReturn(mockNestedProps);
             propertyUtilMockedStatic
                     .when(() -> PropertyUtil.getPropertyValue(anyString(), anyString()))
                     .thenAnswer(invocation -> invocation.getArgument(1));

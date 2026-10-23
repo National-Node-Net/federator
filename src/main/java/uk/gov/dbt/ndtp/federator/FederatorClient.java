@@ -71,7 +71,6 @@ public class FederatorClient {
     private static final String LOG_SERVICE = "Configuration service initialized";
     private static final String LOG_ERROR = "Configuration error, stopping: {}";
     private static final String LOG_PROPS_LOAD = "Loading properties from: {}";
-    private static final String COMMON_CONFIG = "common.configuration";
     private static final String ERR_SSL_CONFIG = "SSL configuration failed: {}";
     private final ConsumerConfigService configService;
     private final JobSchedulerProvider scheduler;
@@ -149,10 +148,11 @@ public class FederatorClient {
      * @return configured service
      */
     private static ConsumerConfigService createConfigService() {
+        // Created first so an incomplete idp.* configuration fails fast with a clear message
+        final IdpTokenService tokenService = GRPCUtils.createIdpTokenService();
         final HttpClient httpClient = createHttpClient();
         final ObjectMapper mapper = ObjectMapperUtil.getInstance();
 
-        final IdpTokenService tokenService = GRPCUtils.createIdpTokenService();
         final ManagementNodeDataHandler handler = new ManagementNodeDataHandler(httpClient, mapper, tokenService);
         final InMemoryConfigurationStore store = InMemoryConfigurationStore.getInstance();
         LOGGER.info(LOG_SERVICE);
@@ -165,7 +165,7 @@ public class FederatorClient {
      * @return HTTP client
      */
     private static HttpClient createHttpClient() {
-        final Properties props = PropertyUtil.getPropertiesFromFilePath(COMMON_CONFIG);
+        final Properties props = PropertyUtil.getIdpProperties();
         try {
 
             return HttpClientFactoryUtils.createHttpClientWithMtls(props);

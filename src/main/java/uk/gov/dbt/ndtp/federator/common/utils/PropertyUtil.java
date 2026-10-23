@@ -48,10 +48,23 @@ import org.slf4j.LoggerFactory;
  *   The class also provides methods to get properties as int, long, boolean, duration and file.
  *   The class also provides a method to clear the properties for testing purposes.
  * </p>
+ * <p>
+ *   Identity Provider settings ({@code idp.*}) live in the main server/client properties file. For backward
+ *   compatibility with older deployments, if the deprecated {@value #LEGACY_COMMON_CONFIGURATION} property is
+ *   set, the referenced file is loaded and merged in; keys already present in the main file take precedence.
+ * </p>
  */
 public class PropertyUtil {
 
     public static final Logger LOGGER = LoggerFactory.getLogger("PropertyUtil");
+
+    /**
+     * Deprecated: path to a separate common configuration file. Only honoured as a fallback for older setups;
+     * {@code idp.*} properties should be defined directly in the server/client properties file.
+     */
+    public static final String LEGACY_COMMON_CONFIGURATION = "common.configuration";
+
+    public static final String IDP_PROPERTY_PREFIX = "idp.";
 
     private static PropertyUtil instance;
     public final Properties properties;
@@ -63,7 +76,34 @@ public class PropertyUtil {
         } catch (Exception t) {
             throw new PropertyUtilException("Error loading properties from inputStream", t);
         }
+        mergeLegacyCommonConfiguration(properties);
         overrideSystemProperties(properties);
+    }
+
+    /**
+     * Fallback for older setups that still reference a separate common configuration file via
+     * {@value #LEGACY_COMMON_CONFIGURATION}. Properties from that file are added only where the main file does not
+     * already define the key.
+     */
+    static void mergeLegacyCommonConfiguration(Properties properties) {
+        String commonPath = properties.getProperty(LEGACY_COMMON_CONFIGURATION);
+        if (commonPath == null || commonPath.isBlank()) {
+            return;
+        }
+        LOGGER.warn(
+                "Property '{}' is deprecated and will be removed in a future release. "
+                        + "Move the idp.* properties from '{}' into the main properties file.",
+                LEGACY_COMMON_CONFIGURATION,
+                commonPath);
+        Properties common = loadProperties(commonPath.trim(), LEGACY_COMMON_CONFIGURATION);
+        common.forEach((key, value) -> {
+            if (properties.putIfAbsent(key, value) != null) {
+                LOGGER.info(
+                        "Property '{}' is defined in both the main properties file and '{}'; using the main file value",
+                        key,
+                        commonPath);
+            }
+        });
     }
 
     public static boolean initializeProperties() {
@@ -198,7 +238,10 @@ public class PropertyUtil {
      * @throws PropertyUtilException if the properties cannot be loaded from either location
      */
     public static Properties getPropertiesFromFilePath(String filePathKey) {
-        String configured = getPropertyValue(filePathKey);
+        return loadProperties(getPropertyValue(filePathKey), filePathKey);
+    }
+
+    private static Properties loadProperties(String configured, String filePathKey) {
         Properties nestedProperties = new Properties();
 
         // First try absolute path
@@ -218,18 +261,28 @@ public class PropertyUtil {
         }
 
         // Fallback: try classpath resource
-        try {
-            File resourceFile = getPropertyFileValue(filePathKey);
-            try (FileInputStream fis = new FileInputStream(resourceFile)) {
-                nestedProperties.load(fis);
-                return nestedProperties;
+        ClassLoader loader = Thread.currentThread().getContextClassLoader();
+        try (InputStream resourceStream = loader.getResourceAsStream(configured)) {
+            if (resourceStream == null) {
+                throw new PropertyUtilException("Classpath resource not found: '" + configured + "'");
             }
+            nestedProperties.load(resourceStream);
+            return nestedProperties;
         } catch (Exception e) {
             throw new PropertyUtilException(
                     "Failed to load properties for key '" + filePathKey + "' from absolute path '"
                             + absoluteFile.getPath() + "' or classpath resource '" + configured + "'",
                     e);
         }
+    }
+
+    /**
+     * Returns the Identity Provider ({@code idp.*}) properties from the loaded configuration.
+     *
+     * @return a copy of all properties whose key starts with {@value #IDP_PROPERTY_PREFIX}
+     */
+    public static Properties getIdpProperties() {
+        return getByPrefix(IDP_PROPERTY_PREFIX);
     }
 
     public static Properties getByPrefix(String prefix) {

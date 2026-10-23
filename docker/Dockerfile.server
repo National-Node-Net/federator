@@ -35,10 +35,13 @@ RUN apt-get update && \
 	rm -rf /var/lib/apt/lists/* && \
 	rm -f /usr/bin/pebble
 
-RUN mkdir -p /library/ /app/ && \
+# /config-templates/ receives mounted property templates; the entrypoint renders
+# them (envsubst) into /config/, which must be writable by the service user.
+RUN mkdir -p /library/ /app/ /config/ /config-templates/ && \
 	groupadd appgroup && \
 	useradd -Mg appgroup federator-service && \
-	chown -R :appgroup /library/ /app/
+	chown -R :appgroup /library/ /app/ /config-templates/ && \
+	chown federator-service:appgroup /config/
 WORKDIR /app
 ARG JAR_NAME
 COPY target/${JAR_NAME}.jar /app/app.jar
@@ -52,9 +55,8 @@ ENTRYPOINT ["/usr/local/bin/federator-entrypoint"]
 # Federation Server with MSK auth support
 FROM federator AS federator-msk
 USER root
+# appgroup and federator-service are inherited from the federator stage
 RUN mkdir -p /baked-library/ && \
-	groupadd appgroup && \
-	useradd -Mg appgroup federator-service && \
 	chown -R :appgroup /baked-library/
 ARG MSK_VERSION=2.3.0
 ADD --chmod=644 https://github.com/aws/aws-msk-iam-auth/releases/download/v${MSK_VERSION}/aws-msk-iam-auth-${MSK_VERSION}-all.jar /baked-library/

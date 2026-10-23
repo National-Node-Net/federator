@@ -48,9 +48,7 @@ class IdpTokenServiceMtlsImplTest {
         properties.setProperty("idp.jwks.url", "http://localhost/jwks");
         properties.setProperty("idp.token.url", "http://localhost/token");
         properties.setProperty("idp.client.id", "test-client-id");
-        propertyUtilMockedStatic
-                .when(() -> PropertyUtil.getPropertiesFromFilePath(anyString()))
-                .thenReturn(properties);
+        propertyUtilMockedStatic.when(() -> PropertyUtil.getIdpProperties()).thenReturn(properties);
         propertyUtilMockedStatic
                 .when(() -> PropertyUtil.getPropertyIntValue(anyString(), anyString()))
                 .thenReturn(3);

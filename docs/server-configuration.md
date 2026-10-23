@@ -9,12 +9,13 @@
 
 ## Overview
 
-This document describes the configuration properties for the Federator server, including connection settings, filtering, and common configuration options shared across Federator components.
+This document describes the configuration properties for the Federator server, including connection settings, filtering, and Identity Provider (IDP) settings.
 
 ## Configuration Files
 
-- **server.properties**: Main server configuration. Location defined by the `FEDERATOR_SERVER_PROPERTIES` environment variable.
-- **common-configuration.properties**: Contains properties shared by both server and client. Location defined by the `FEDERATOR_COMMON_PROPERTIES` environment variable.
+- **server.properties**: The single server configuration file, including the Identity Provider (`idp.*`) properties. Location defined by the `FEDERATOR_SERVER_PROPERTIES` environment variable.
+
+> A separate `common-configuration.properties` file is no longer required. See [Migrating from common-configuration.properties](#migrating-from-common-configurationproperties).
 
 ## Server Properties
 
@@ -37,9 +38,9 @@ This document describes the configuration properties for the Federator server, i
 **Note:**
 - The `consumer.inactivity.timeout` property controls how long the server will wait for messages before disconnecting a consumer due to inactivity. If no messages are received within this duration, the consumer connection is closed automatically. This helps free up resources and ensures efficient operation.
 
-## Common Configuration Properties
+## Identity Provider (IDP) Properties
 
-Common properties are defined in `common-configuration.properties` and may include:
+The IDP properties are defined directly in `server.properties`:
 
 | Property                   | Description                                                                                   |
 |----------------------------|-----------------------------------------------------------------------------------------------|
@@ -53,9 +54,27 @@ Common properties are defined in `common-configuration.properties` and may inclu
 | `idp.keystore.password`    | Password for the client keystore                                                              |
 | `idp.truststore.path`      | Path to truststore containing the IDP's root CA or certificate chain                          |
 | `idp.truststore.password`  | Password for the truststore                                                                   |
-| ...                        | Other shared properties as required                                                           |
 
-All properties can be set directly or via environment variables (see `${...}` syntax in the file). These settings ensure secure authentication and authorisation between Federator components and the Identity Provider, supporting both mTLS and OAuth2 flows.
+These settings ensure secure authentication and authorisation between Federator components and the Identity Provider, supporting both mTLS and OAuth2 flows.
+
+The server validates the IDP configuration at startup and exits with a clear error if a required property is missing or still contains an unresolved `${...}` placeholder:
+
+- Always required: `idp.token.url`, `idp.jwks.url`, `idp.client.id`
+- When `idp.mtls.enabled=true`: `idp.keystore.path`, `idp.truststore.path`
+- When `idp.mtls.enabled=false`: `idp.client.secret`
+
+### Environment Variable Placeholders
+
+The sample `server.properties` uses `${IDP_*}` placeholders (`IDP_CLIENT_ID`, `IDP_CLIENT_SECRET`, `IDP_TOKEN_URL`, `IDP_JWKS_URL`, `IDP_KEYSTORE_PATH`, `IDP_KEYSTORE_PASSWORD`, `IDP_TRUSTSTORE_PATH`, `IDP_TRUSTSTORE_PASSWORD`). Java does not resolve these itself:
+
+- **Docker / Kubernetes:** mount the file at `/config-templates/server.properties`. The container entrypoint renders it with `envsubst` into `/config/server.properties` using the container environment.
+- **Running the jar directly:** replace the placeholders with literal values, or render the file first, e.g. `envsubst < src/configs/server.properties > /tmp/server.properties`.
+
+### Migrating from common-configuration.properties
+
+Earlier releases loaded the `idp.*` properties from a separate file referenced by `common.configuration`. To migrate, copy the `idp.*` properties into `server.properties` and remove the `common.configuration` property (and, for containers, the `/config-templates/common-configuration.properties` mount).
+
+Existing setups keep working in the meantime: if `common.configuration` is still set, the referenced file is loaded and merged, with values in `server.properties` taking precedence, and a deprecation warning is logged. This fallback will be removed in a future release.
 
 ## Custom Filter Configuration
 

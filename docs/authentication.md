@@ -16,7 +16,7 @@ Federator uses mutual TLS (mTLS) and JWT-based authentication and authorization 
 - **Client to IDP:**
   - When a client starts, it authenticates to the Identity Provider (IDP, e.g., Keycloak) using mTLS.
   - The client presents its certificate to the IDP, which verifies the identity and issues a JWT token.
-  - All properties for mTLS (keystore, truststore, passwords) are configured in `common-configuration.properties`.
+  - All properties for mTLS (keystore, truststore, passwords) are configured as `idp.*` properties in `client.properties` (and `server.properties` for the server).
 
 - **Client to Server (Producer):**
   - The client establishes a secure connection to each producer/server using mTLS.
@@ -69,8 +69,9 @@ sequenceDiagram
 
 ## Configuration Summary
 
-- All mTLS and JWT properties are set in `common-configuration.properties`:
+- All mTLS and JWT properties are set as `idp.*` properties directly in `client.properties` and `server.properties`:
   - `idp.mtls.enabled`, `idp.keystore.path`, `idp.keystore.password`, `idp.truststore.path`, `idp.truststore.password`, `idp.jwks.url`, `idp.token.url`, `idp.client.id`, etc.
+- A separate `common-configuration.properties` file is no longer required. Setups that still reference one via `common.configuration` keep working but log a deprecation warning (see [client configuration](client-configuration.md#migrating-from-common-configurationproperties)).
 - All authentication and authorization is handled via mTLS and JWT tokens.
 
 ## Example Flow

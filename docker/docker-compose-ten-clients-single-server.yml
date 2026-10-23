@@ -18,6 +18,18 @@ include:
   - docker-grpc-resources/docker-compose-shared.yml
 
 name: grpc-ten-clients-single-server-performance-test
+# Identity Provider settings rendered into the mounted property templates by the
+# container entrypoint (envsubst). Set these in the shell or in .env.
+x-idp-environment: &idp-environment
+  IDP_CLIENT_ID: ${IDP_CLIENT_ID:-}
+  IDP_CLIENT_SECRET: ${IDP_CLIENT_SECRET:-}
+  IDP_TOKEN_URL: ${IDP_TOKEN_URL:-}
+  IDP_JWKS_URL: ${IDP_JWKS_URL:-}
+  IDP_KEYSTORE_PATH: ${IDP_KEYSTORE_PATH:-}
+  IDP_KEYSTORE_PASSWORD: ${IDP_KEYSTORE_PASSWORD:-}
+  IDP_TRUSTSTORE_PATH: ${IDP_TRUSTSTORE_PATH:-}
+  IDP_TRUSTSTORE_PASSWORD: ${IDP_TRUSTSTORE_PASSWORD:-}
+
 services:
 
   zookeeper-target-2:
@@ -84,6 +96,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8080:8080"
@@ -93,7 +106,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/server.properties:/config/server.properties
+      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/server.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8089 || exit 1"
@@ -110,11 +123,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client1.properties:/config/client.properties
+      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client1.properties:/config-templates/client.properties
     depends_on:
       redis:
         condition: service_healthy
@@ -139,11 +153,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client2.properties:/config/client.properties
+      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client2.properties:/config-templates/client.properties
     depends_on:
       redis:
         condition: service_healthy
@@ -168,11 +183,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client3.properties:/config/client.properties
+      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client3.properties:/config-templates/client.properties
     depends_on:
       redis:
         condition: service_healthy
@@ -197,11 +213,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client4.properties:/config/client.properties
+      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client4.properties:/config-templates/client.properties
     depends_on:
       redis:
         condition: service_healthy
@@ -226,11 +243,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client5.properties:/config/client.properties
+      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client5.properties:/config-templates/client.properties
     depends_on:
       redis:
         condition: service_healthy
@@ -255,11 +273,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client6.properties:/config/client.properties
+      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client6.properties:/config-templates/client.properties
     depends_on:
       redis:
         condition: service_healthy
@@ -284,11 +303,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client7.properties:/config/client.properties
+      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client7.properties:/config-templates/client.properties
     depends_on:
       redis:
         condition: service_healthy
@@ -313,11 +333,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client8.properties:/config/client.properties
+      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client8.properties:/config-templates/client.properties
     depends_on:
       redis:
         condition: service_healthy
@@ -342,11 +363,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client9.properties:/config/client.properties
+      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client9.properties:/config-templates/client.properties
     depends_on:
       redis:
         condition: service_healthy
@@ -371,11 +393,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client10.properties:/config/client.properties
+      - ./docker-grpc-resources/performance-tests/ten-clients-single-server/client10.properties:/config-templates/client.properties
     depends_on:
       redis:
         condition: service_healthy

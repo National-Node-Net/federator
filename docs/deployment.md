@@ -80,7 +80,7 @@ For details on generating and configuring certificates, see [authentication.md](
    ./kafka-console-consumer.sh --bootstrap-server localhost:29093 --topic federated-client1-FederatorServer1-knowledge --from-beginning
    ```
 
-> **Note:** Configuration is now dynamic and retrieved from Management Node. Ensure your `client.properties` and `server.properties` reference the correct keystore and truststore files, and set the `management.node.base.url` property.
+> **Note:** Configuration is now dynamic and retrieved from Management Node. Ensure your `client.properties` and `server.properties` reference the correct keystore and truststore files, contain the `idp.*` Identity Provider properties, and set the `management.node.base.url` property.
 
 For more details on configuration, see [client-configuration.md](client-configuration.md) and [server-configuration.md](server-configuration.md).
 

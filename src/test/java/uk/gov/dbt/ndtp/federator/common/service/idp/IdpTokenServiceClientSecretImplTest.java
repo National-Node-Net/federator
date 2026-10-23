@@ -43,9 +43,7 @@ class IdpTokenServiceClientSecretImplTest {
         properties.setProperty("idp.token.url", "http://localhost/token");
         properties.setProperty("idp.client.id", "test-client-id");
         properties.setProperty("idp.client.secret", "test-client-secret");
-        propertyUtilMockedStatic
-                .when(() -> PropertyUtil.getPropertiesFromFilePath(anyString()))
-                .thenReturn(properties);
+        propertyUtilMockedStatic.when(() -> PropertyUtil.getIdpProperties()).thenReturn(properties);
         propertyUtilMockedStatic
                 .when(() -> PropertyUtil.getPropertyIntValue(anyString(), anyString()))
                 .thenReturn(3);

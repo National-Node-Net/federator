@@ -79,19 +79,32 @@ class GRPCUtilsTest {
         assertEquals("00010fff", GRPCUtils.bytesToHex(bytes));
     }
 
-    @Test
-    void testCreateIdpTokenService_ClientSecret() throws Exception {
-        File commonConfig = tempDir.resolve("common.properties").toFile();
+    private static Properties idpProperties(boolean mtlsEnabled) {
         Properties props = new Properties();
-        props.setProperty("idp.mtls.enabled", "false");
-        try (FileOutputStream out = new FileOutputStream(commonConfig)) {
+        props.setProperty("idp.mtls.enabled", String.valueOf(mtlsEnabled));
+        props.setProperty("idp.token.url", "http://localhost/token");
+        props.setProperty("idp.jwks.url", "http://localhost/jwks");
+        props.setProperty("idp.client.id", "test-client-id");
+        if (mtlsEnabled) {
+            props.setProperty("idp.keystore.path", "keystore.p12");
+            props.setProperty("idp.truststore.path", "truststore.jks");
+        } else {
+            props.setProperty("idp.client.secret", "test-client-secret");
+        }
+        return props;
+    }
+
+    private File writeProperties(String fileName, Properties props) throws Exception {
+        File file = tempDir.resolve(fileName).toFile();
+        try (FileOutputStream out = new FileOutputStream(file)) {
             props.store(out, null);
         }
+        return file;
+    }
 
-        PropertyUtil.init("test.properties"); // Just to have it initialized
-        PropertyUtil.getInstance()
-                .properties
-                .setProperty(GRPCUtils.COMMON_CONFIG_PROPERTIES, commonConfig.getAbsolutePath());
+    @Test
+    void testCreateIdpTokenService_ClientSecret() throws Exception {
+        PropertyUtil.init(writeProperties("server.properties", idpProperties(false)));
 
         try (MockedStatic<HttpClientFactoryUtils> factoryMock = mockStatic(HttpClientFactoryUtils.class)) {
             factoryMock
@@ -105,17 +118,7 @@ class GRPCUtilsTest {
 
     @Test
     void testCreateIdpTokenService_Mtls() throws Exception {
-        File commonConfig = tempDir.resolve("common_mtls.properties").toFile();
-        Properties props = new Properties();
-        props.setProperty("idp.mtls.enabled", "true");
-        try (FileOutputStream out = new FileOutputStream(commonConfig)) {
-            props.store(out, null);
-        }
-
-        PropertyUtil.init("test.properties");
-        PropertyUtil.getInstance()
-                .properties
-                .setProperty(GRPCUtils.COMMON_CONFIG_PROPERTIES, commonConfig.getAbsolutePath());
+        PropertyUtil.init(writeProperties("server.properties", idpProperties(true)));
 
         // Mocking HttpClientFactoryUtils because it tries to create a real client with MTLS
         try (MockedStatic<HttpClientFactoryUtils> factoryMock = mockStatic(HttpClientFactoryUtils.class)) {
@@ -126,6 +129,60 @@ class GRPCUtilsTest {
             IdpTokenService service = GRPCUtils.createIdpTokenService();
             assertTrue(service instanceof IdpTokenServiceMtlsImpl);
         }
+    }
+
+    @Test
+    void testCreateIdpTokenService_LegacyCommonConfigurationFallback() throws Exception {
+        File commonConfig = writeProperties("common-configuration.properties", idpProperties(true));
+        Properties main = new Properties();
+        main.setProperty(PropertyUtil.LEGACY_COMMON_CONFIGURATION, commonConfig.getAbsolutePath());
+        PropertyUtil.init(writeProperties("server.properties", main));
+
+        try (MockedStatic<HttpClientFactoryUtils> factoryMock = mockStatic(HttpClientFactoryUtils.class)) {
+            factoryMock
+                    .when(() -> HttpClientFactoryUtils.createHttpClientWithMtls(any()))
+                    .thenReturn(mock(java.net.http.HttpClient.class));
+
+            IdpTokenService service = GRPCUtils.createIdpTokenService();
+            assertTrue(service instanceof IdpTokenServiceMtlsImpl);
+        }
+    }
+
+    @Test
+    void testValidateIdpProperties_ValidConfigurations() {
+        assertDoesNotThrow(() -> GRPCUtils.validateIdpProperties(idpProperties(true), true));
+        assertDoesNotThrow(() -> GRPCUtils.validateIdpProperties(idpProperties(false), false));
+    }
+
+    @Test
+    void testValidateIdpProperties_MissingProperties() {
+        Properties props = idpProperties(false);
+        props.remove("idp.token.url");
+        props.setProperty("idp.client.secret", " ");
+
+        PropertyUtil.PropertyUtilException ex = assertThrows(
+                PropertyUtil.PropertyUtilException.class, () -> GRPCUtils.validateIdpProperties(props, false));
+        assertTrue(ex.getMessage().contains("idp.token.url"));
+        assertTrue(ex.getMessage().contains("idp.client.secret"));
+    }
+
+    @Test
+    void testValidateIdpProperties_MtlsRequiresKeystoreAndTruststore() {
+        PropertyUtil.PropertyUtilException ex = assertThrows(
+                PropertyUtil.PropertyUtilException.class,
+                () -> GRPCUtils.validateIdpProperties(idpProperties(false), true));
+        assertTrue(ex.getMessage().contains("idp.keystore.path"));
+        assertTrue(ex.getMessage().contains("idp.truststore.path"));
+    }
+
+    @Test
+    void testValidateIdpProperties_UnresolvedPlaceholder() {
+        Properties props = idpProperties(true);
+        props.setProperty("idp.jwks.url", "${IDP_JWKS_URL}");
+
+        PropertyUtil.PropertyUtilException ex = assertThrows(
+                PropertyUtil.PropertyUtilException.class, () -> GRPCUtils.validateIdpProperties(props, true));
+        assertTrue(ex.getMessage().contains("idp.jwks.url"));
     }
 
     @Test

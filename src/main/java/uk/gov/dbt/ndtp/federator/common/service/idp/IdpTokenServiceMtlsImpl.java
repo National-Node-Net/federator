@@ -24,17 +24,13 @@ import uk.gov.dbt.ndtp.federator.exceptions.FederatorTokenException;
 @Slf4j
 public class IdpTokenServiceMtlsImpl extends AbstractIdpTokenService {
 
-    private static final String COMMON_CONFIG_PROPERTIES = "common.configuration";
     private static final String MANAGEMENT_NODE_DEFAULT_ID = "default";
     private final String idpTokenUrl;
     private final String idpClientId;
 
     public IdpTokenServiceMtlsImpl(HttpClient httpClient, ObjectMapper objectMapper) {
-        super(
-                PropertyUtil.getPropertiesFromFilePath(COMMON_CONFIG_PROPERTIES).getProperty("idp.jwks.url"),
-                httpClient,
-                objectMapper);
-        Properties properties = PropertyUtil.getPropertiesFromFilePath(COMMON_CONFIG_PROPERTIES);
+        super(PropertyUtil.getIdpProperties().getProperty("idp.jwks.url"), httpClient, objectMapper);
+        Properties properties = PropertyUtil.getIdpProperties();
         this.idpTokenUrl = properties.getProperty("idp.token.url");
         this.idpClientId = properties.getProperty("idp.client.id");
     }
