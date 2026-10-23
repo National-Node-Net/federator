@@ -461,13 +461,41 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#common-configuration-properties" class="md-nav__link">
+  <a href="#identity-provider-idp-properties" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Common Configuration Properties
+        Identity Provider (IDP) Properties
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Identity Provider (IDP) Properties">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#environment-variable-placeholders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Variable Placeholders
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrating-from-common-configurationproperties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrating from common-configuration.properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -849,13 +877,41 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#common-configuration-properties" class="md-nav__link">
+  <a href="#identity-provider-idp-properties" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Common Configuration Properties
+        Identity Provider (IDP) Properties
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Identity Provider (IDP) Properties">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#environment-variable-placeholders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Variable Placeholders
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrating-from-common-configurationproperties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrating from common-configuration.properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -999,12 +1055,14 @@
 
 <hr />
 <h2 id="overview">Overview</h2>
-<p>This document describes the configuration properties for the Federator client, including connection settings, job parameters, caching, management node, dynamic configuration, and common configuration options shared across Federator components.</p>
+<p>This document describes the configuration properties for the Federator client, including connection settings, job parameters, caching, management node, dynamic configuration, and Identity Provider (IDP) settings.</p>
 <h2 id="configuration-files">Configuration Files</h2>
 <ul>
-<li><strong>client.properties</strong>: Main client configuration. Location defined by the <code>FEDERATOR_CLIENT_PROPERTIES</code> environment variable.</li>
-<li><strong>common-configuration.properties</strong>: Contains properties shared by both server and client. Location defined by the <code>common.configuration</code> property in <code>client.properties</code>.</li>
+<li><strong>client.properties</strong>: The single client configuration file, including the Identity Provider (<code>idp.*</code>) properties. Location defined by the <code>FEDERATOR_CLIENT_PROPERTIES</code> environment variable.</li>
 </ul>
+<blockquote>
+<p>A separate <code>common-configuration.properties</code> file is no longer required. See <a href="#migrating-from-common-configurationproperties">Migrating from common-configuration.properties</a>.</p>
+</blockquote>
 <h2 id="client-properties">Client Properties</h2>
 <table>
 <thead>
@@ -1088,10 +1146,8 @@
 <p>To run the Federator client, follow these steps:</p>
 <ol>
 <li><strong>Prepare Configuration Files:</strong></li>
-<li>Ensure <code>client.properties</code> contains all required client-specific settings.</li>
-<li>Ensure <code>common-configuration.properties</code> contains shared authentication and security properties.</li>
 <li>
-<p>Set the <code>common.configuration</code> property in <code>client.properties</code> to the path of your <code>common-configuration.properties</code> file.</p>
+<p>Ensure <code>client.properties</code> contains all required client settings, including the <code>idp.*</code> authentication and security properties.</p>
 </li>
 <li>
 <p><strong>Set Environment Variables:</strong></p>
@@ -1105,12 +1161,16 @@
 <li><strong>Run the Client:</strong></li>
 <li>If using Java directly:
      <div class="language-zsh highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>java<span class="w"> </span>-jar<span class="w"> </span>federator-client.jar
-</span></code></pre></div></li>
+</span></code></pre></div>
+     Values are taken from environment variables where set (see <a href="#environment-variable-placeholders">Environment Variable Placeholders</a>), e.g. <code>IDP_CLIENT_ID=... java -jar federator-client.jar</code>.</li>
 <li>
-<p>If using Docker:
+<p>If using Docker, mount the file and pass the environment variables to override:
      <div class="language-zsh highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>docker<span class="w"> </span>run<span class="w"> </span>--env<span class="w"> </span><span class="nv">FEDERATOR_CLIENT_PROPERTIES</span><span class="o">=</span>/config/client.properties<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">           </span>-v<span class="w"> </span>/local/config:/config<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">           </span>federator-client:latest
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">           </span>--env<span class="w"> </span><span class="nv">IDP_CLIENT_ID</span><span class="o">=</span>...<span class="w"> </span>--env<span class="w"> </span><span class="nv">IDP_TOKEN_URL</span><span class="o">=</span>...<span class="w"> </span>--env<span class="w"> </span><span class="nv">IDP_JWKS_URL</span><span class="o">=</span>...<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">           </span>--env<span class="w"> </span><span class="nv">IDP_KEYSTORE_PATH</span><span class="o">=</span>...<span class="w"> </span>--env<span class="w"> </span><span class="nv">IDP_KEYSTORE_PASSWORD</span><span class="o">=</span>...<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">           </span>--env<span class="w"> </span><span class="nv">IDP_TRUSTSTORE_PATH</span><span class="o">=</span>...<span class="w"> </span>--env<span class="w"> </span><span class="nv">IDP_TRUSTSTORE_PASSWORD</span><span class="o">=</span>...<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">           </span>-v<span class="w"> </span>/local/config/client.properties:/config/client.properties:ro<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">           </span>federator-client:latest
 </span></code></pre></div></p>
 </li>
 <li>
@@ -1121,10 +1181,9 @@
 </ol>
 <p><strong>Note:</strong>
 - All configuration properties must be set in the respective files. Properties cannot be overridden by environment variables.
-- The client will dynamically obtain server connection details from the management node as described above.
-- The location of <code>common-configuration.properties</code> is set by the <code>common.configuration</code> property in <code>client.properties</code>.</p>
-<h2 id="common-configuration-properties">Common Configuration Properties</h2>
-<p>Common properties are defined in <code>common-configuration.properties</code> and may include:</p>
+- The client will dynamically obtain server connection details from the management node as described above.</p>
+<h2 id="identity-provider-idp-properties">Identity Provider (IDP) Properties</h2>
+<p>The IDP properties are defined directly in <code>client.properties</code>:</p>
 <table>
 <thead>
 <tr>
@@ -1173,20 +1232,70 @@
 <td><code>idp.truststore.password</code></td>
 <td>Password for the truststore</td>
 </tr>
-<tr>
-<td>...</td>
-<td>Other shared properties as required</td>
-</tr>
 </tbody>
 </table>
 <p>These settings ensure secure authentication and authorisation between Federator components and the Identity Provider, supporting both mTLS and OAuth2 flows.</p>
+<p>The client validates the IDP configuration at startup and exits with a clear error if a required property is missing or still contains an unresolved <code>${...}</code> placeholder (the IDP URLs, client ID and credentials have empty defaults in the sample file, so they must be provided):</p>
+<ul>
+<li>Always required: <code>idp.token.url</code>, <code>idp.jwks.url</code>, <code>idp.client.id</code></li>
+<li>When <code>idp.mtls.enabled=true</code>: <code>idp.keystore.path</code>, <code>idp.truststore.path</code></li>
+<li>When <code>idp.mtls.enabled=false</code>: <code>idp.client.secret</code></li>
+</ul>
+<h3 id="environment-variable-placeholders">Environment Variable Placeholders</h3>
+<p>Every value in the sample <code>client.properties</code> is written as a <code>${ENV_VAR:default}</code> placeholder, which the application resolves at startup (similar to Spring Boot):</p>
+<table>
+<thead>
+<tr>
+<th>Syntax</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>${IDP_CLIENT_ID}</code></td>
+<td>Value of <code>IDP_CLIENT_ID</code>; left unresolved if it is not set</td>
+</tr>
+<tr>
+<td><code>${IDP_TOKEN_BACKOFF:1000}</code></td>
+<td>Value of <code>IDP_TOKEN_BACKOFF</code>, or <code>1000</code> if it is not set</td>
+</tr>
+<tr>
+<td><code>${IDP_CLIENT_SECRET:}</code></td>
+<td>Value of <code>IDP_CLIENT_SECRET</code>, or an empty value if it is not set</td>
+</tr>
+<tr>
+<td><code>https://${IDP_HOST}:${IDP_PORT:8443}/token</code></td>
+<td>Several placeholders in one value</td>
+</tr>
+<tr>
+<td><code>${PRIMARY:${SECONDARY:fallback}}</code></td>
+<td>Nested defaults</td>
+</tr>
+<tr>
+<td><code>${idp.base.url}/token</code></td>
+<td>Reference to another property in the same file</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>Each placeholder name is looked up, in order, as a JVM system property (<code>-DIDP_CLIENT_ID=...</code>), an environment variable, then another property in the file; the default after the first <code>:</code> applies only when none is found.</li>
+<li>An environment variable that is set to an empty string counts as set, so the default does not apply.</li>
+<li>The sample files name each variable after its property: upper case, <code>.</code> replaced by <code>_</code> and <code>-</code> removed (e.g. <code>management.node.base.url</code> → <code>MANAGEMENT_NODE_BASE_URL</code>, <code>opa.decision-path</code> → <code>OPA_DECISIONPATH</code>).</li>
+<li>To use a literal <code>${...}</code> in a value, escape it as <code>\\${...}</code> in the file.</li>
+<li>Placeholders that cannot be resolved and have no default are logged at startup (property names only, never values). For the required <code>idp.*</code> properties this stops startup with an <code>Invalid Identity Provider configuration</code> error.</li>
+<li><code>-Dkey=value</code> system properties (for example <code>-Didp.client.id=...</code>) still override a whole property, before placeholders are resolved.</li>
+</ul>
+<p>This works the same when running the jar directly and in containers; no <code>envsubst</code> step is needed.</p>
+<h3 id="migrating-from-common-configurationproperties">Migrating from common-configuration.properties</h3>
+<p>Earlier releases loaded the <code>idp.*</code> properties from a separate file referenced by <code>common.configuration</code>. To migrate, copy the <code>idp.*</code> properties into <code>client.properties</code> and remove the <code>common.configuration</code> property (and, for containers, the <code>/config-templates/common-configuration.properties</code> mount).</p>
+<p>Existing setups keep working in the meantime: if <code>common.configuration</code> is still set, the referenced file is loaded and merged, with values in <code>client.properties</code> taking precedence, and a deprecation warning is logged. This fallback will be removed in a future release.</p>
 <h2 id="dynamic-consumer-configuration-via-management-node">Dynamic Consumer Configuration via Management Node</h2>
 <p>Federator clients dynamically obtain their server connection details from the management node. The workflow is as follows:</p>
 <ol>
 <li><strong>JWT Token Acquisition via mTLS:</strong></li>
 <li>The client authenticates with the Identity Provider (IDP, e.g., Keycloak) using mutual TLS (mTLS) and obtains a JWT token.</li>
 <li>
-<p>Relevant properties for mTLS and OAuth2 are set in <code>common-configuration.properties</code> (see above).</p>
+<p>Relevant properties for mTLS and OAuth2 are the <code>idp.*</code> properties in <code>client.properties</code> (see above).</p>
 </li>
 <li>
 <p><strong>Management Node Authentication:</strong></p>
@@ -1243,7 +1352,7 @@
 <p><strong>Required Properties:</strong>
 - <code>management.node.host</code>: Hostname of the management node.
 - <code>management.node.port</code>: Port of the management node.
-- mTLS and OAuth2 properties in <code>common-configuration.properties</code> for JWT acquisition.</p>
+- mTLS and OAuth2 (<code>idp.*</code>) properties in <code>client.properties</code> for JWT acquisition.</p>
 <p>This approach allows clients to be dynamically configured and managed, supporting secure, scalable, and flexible data integration.</p>
 <h2 id="job-parameters-job-configuration">Job Parameters &amp; Job Configuration</h2>
 <p>Job parameters control how the client processes messages and interacts with the server. Key properties include:</p>
@@ -1282,7 +1391,7 @@
 <ul>
 <li>Ensures each request is authenticated and authorized according to the security policies of the management node and producers.</li>
 <li>Integrates seamlessly with dynamic configuration and the job scheduler, so all connections established as a result of job scheduling or configuration updates are properly secured.</li>
-<li>Relies on the mTLS and OAuth2 properties in <code>common-configuration.properties</code> for token acquisition and management.</li>
+<li>Relies on the mTLS and OAuth2 (<code>idp.*</code>) properties in <code>client.properties</code> for token acquisition and management.</li>
 </ul>
 <p>No additional configuration is required for the interceptor beyond the standard authentication properties. This approach guarantees that all client-server interactions are protected and compliant with Federator's security requirements.</p>
 <h2 id="sequence-diagram">Sequence Diagram</h2>
@@ -1296,8 +1405,7 @@
     participant ProducerServer
 
     User-&gt;&gt;Client: Start client process
-    Client-&gt;&gt;ConfigFiles: Load client.properties
-    Client-&gt;&gt;ConfigFiles: Load common-configuration.properties (via common.configuration)
+    Client-&gt;&gt;ConfigFiles: Load client.properties (including idp.* properties)
     Client-&gt;&gt;IDP: Authenticate using mTLS, request JWT
     IDP--&gt;&gt;Client: Return JWT token
     Client-&gt;&gt;ManagementNode: Authenticate with JWT, request dynamic config
@@ -1315,7 +1423,7 @@ C4Container
 
 Person(user, "User", "Initiates and monitors client operation")
 System(client, "Federator Client", "Main client application")
-Container(config, "Configuration Files", "Properties Files", "client.properties, common-configuration.properties")
+Container(config, "Configuration File", "Properties File", "client.properties")
 Container(idp, "Identity Provider (IDP)", "OAuth2/Keycloak", "Issues JWT tokens via mTLS")
 Container(mgmt, "Management Node", "Federator Management Node", "Provides dynamic configuration and job info")
 Container(job, "Job Scheduler", "JobRunr/Quartz", "Schedules, refreshes, and deletes jobs")
@@ -1359,7 +1467,7 @@ For full licensing terms, see <a href="../OGL_LICENSE.md">OGL_LICENSE.md</a>.</p
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="September 29, 2026 21:21:17 UTC">September 29, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 23, 2026 16:46:30 UTC">October 23, 2026</span>
   </span>
 
     

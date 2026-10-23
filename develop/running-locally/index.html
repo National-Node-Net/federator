@@ -1244,7 +1244,7 @@ If you are an Ubuntu user then you might also need to follow some extra steps to
 <h4 id="key-properties">Key Properties</h4>
 <ul>
 <li><strong>client.properties</strong>: Main client configuration. Location defined by the <code>FEDERATOR_CLIENT_PROPERTIES</code> environment variable.</li>
-<li><code>common.configuration</code>: Path to the common configuration file, set in <code>client.properties</code> (e.g., <code>common.configuration=src/configs/common-configuration.properties</code>).</li>
+<li><code>idp.*</code>: Identity Provider (Keycloak) settings, set directly in <code>client.properties</code> and <code>server.properties</code>. The sample files use <code>${ENV_VAR:default}</code> placeholders, so values can be supplied as environment variables (see below).</li>
 <li><code>management.node.base.url</code>: URL of the Management Node (e.g., <code>https://localhost:8090</code>).</li>
 <li><code>management.node.request.timeout</code>: Timeout for Management Node requests.</li>
 <li><code>management.node.cache.ttl.seconds</code>: Cache TTL for Management Node responses.</li>
@@ -1329,22 +1329,30 @@ file bundled into the Jar file.</p>
 <div class="language-shell highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FEDERATOR_SERVER_PROPERTIES</span><span class="o">=</span>./src/configs/server.properties
 </span></code></pre></div>
 <p>This will configure the server to use the properties file <a href="../src/configs/server.properties">server.properties</a> </p>
+<p>Every value in the sample file is a <code>${ENV_VAR:default}</code> placeholder, so you can override any setting with an environment variable. The Identity Provider settings have no usable defaults and must be exported before starting:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">IDP_CLIENT_ID</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_TOKEN_URL</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_JWKS_URL</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_CLIENT_SECRET</span><span class="o">=</span>...
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">IDP_KEYSTORE_PATH</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_KEYSTORE_PASSWORD</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_TRUSTSTORE_PATH</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_TRUSTSTORE_PASSWORD</span><span class="o">=</span>...
+</span></code></pre></div>
 <ul>
 <li>Start the server code contained in a jar file:</li>
 </ul>
-<div class="language-shell highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>java<span class="w"> </span>-jar<span class="w"> </span>./target/federator-server-0.3.0.jar
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>java<span class="w"> </span>-jar<span class="w"> </span>./target/federator-server-0.3.0.jar
 </span></code></pre></div>
 <h4 id="running-the-federator-client-code">Running the Federator Client Code</h4>
 <ul>
 <li>Export the properties file location to the environment variable <code>FEDERATOR_CLIENT_PROPERTIES</code></li>
 </ul>
-<div class="language-shell highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FEDERATOR_CLIENT_PROPERTIES</span><span class="o">=</span>./src/configs/client.properties<span class="w"> </span>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">FEDERATOR_CLIENT_PROPERTIES</span><span class="o">=</span>./src/configs/client.properties<span class="w"> </span>
 </span></code></pre></div>
-<p>This will set the client to use the properties file <a href="../src/configs/client.properties">client.properties</a> and the related common configuration file as defined by the <code>common.configuration</code> property.</p>
+<p>This will set the client to use the properties file <a href="../src/configs/client.properties">client.properties</a>, which also contains the <code>idp.*</code> Identity Provider settings.</p>
+<p>Every value in the sample file is a <code>${ENV_VAR:default}</code> placeholder, so you can override any setting with an environment variable. The Identity Provider settings have no usable defaults and must be exported before starting:</p>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">IDP_CLIENT_ID</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_TOKEN_URL</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_JWKS_URL</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_CLIENT_SECRET</span><span class="o">=</span>...
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">IDP_KEYSTORE_PATH</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_KEYSTORE_PASSWORD</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_TRUSTSTORE_PATH</span><span class="o">=</span>...<span class="w"> </span><span class="nv">IDP_TRUSTSTORE_PASSWORD</span><span class="o">=</span>...
+</span></code></pre></div>
 <ul>
 <li>Start the client code contained in a jar file:</li>
 </ul>
-<div class="language-shell highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>java<span class="w"> </span>-jar<span class="w"> </span>./target/federator-client-0.3.0.jar
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>java<span class="w"> </span>-jar<span class="w"> </span>./target/federator-client-0.3.0.jar
 </span></code></pre></div>
 <h4 id="stopping-the-client-and-server-code">Stopping the Client and Server Code</h4>
 <ul>
@@ -1359,7 +1367,7 @@ file bundled into the Jar file.</p>
 <ul>
 <li>To view the processed Kafka topics on the target Kafka instance use the following command:</li>
 </ul>
-<div class="language-shell highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>kafka-target<span class="w"> </span>kafka-console-consumer<span class="w"> </span>--bootstrap-server<span class="w"> </span>localhost:29093<span class="w"> </span>--topic<span class="w"> </span>federated-Localhost-createDataTopic1<span class="w"> </span>--from-beginning<span class="w"> </span>--property<span class="w"> </span>print.headers<span class="o">=</span><span class="nb">true</span>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>kafka-target<span class="w"> </span>kafka-console-consumer<span class="w"> </span>--bootstrap-server<span class="w"> </span>localhost:29093<span class="w"> </span>--topic<span class="w"> </span>federated-Localhost-createDataTopic1<span class="w"> </span>--from-beginning<span class="w"> </span>--property<span class="w"> </span>print.headers<span class="o">=</span><span class="nb">true</span>
 </span></code></pre></div>
 <ul>
 <li>This will show the messages that have been processed by the federator client code.</li>
@@ -1369,7 +1377,7 @@ file bundled into the Jar file.</p>
 <ul>
 <li>To view the Kafka topics on the source Kafka instance use the following command:</li>
 </ul>
-<div class="language-shell highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>kafka-src<span class="w"> </span>kafka-console-consumer<span class="w"> </span>--bootstrap-server<span class="w"> </span>localhost:19093<span class="w"> </span>--topic<span class="w"> </span>createDataTopic1<span class="w"> </span>--from-beginning<span class="w"> </span>--property<span class="w"> </span>print.headers<span class="o">=</span><span class="nb">true</span>
+<div class="language-shell highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>docker<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>-it<span class="w"> </span>kafka-src<span class="w"> </span>kafka-console-consumer<span class="w"> </span>--bootstrap-server<span class="w"> </span>localhost:19093<span class="w"> </span>--topic<span class="w"> </span>createDataTopic1<span class="w"> </span>--from-beginning<span class="w"> </span>--property<span class="w"> </span>print.headers<span class="o">=</span><span class="nb">true</span>
 </span></code></pre></div>
 <ul>
 <li>This will show the test messages that have been loaded into the source Kafka instance.</li>
@@ -1382,7 +1390,7 @@ file bundled into the Jar file.</p>
 <ul>
 <li>Ensure Management Node, Keycloak, and Postgres are running and accessible from Federator.</li>
 <li>Check mTLS certificates, keystore, and truststore configuration for all components.</li>
-<li>Verify that the <code>common.configuration</code> property in <code>client.properties</code> points to the correct file.</li>
+<li>Verify that the <code>idp.*</code> properties in <code>client.properties</code> and <code>server.properties</code> are set. The application exits at startup with an <code>Invalid Identity Provider configuration</code> error listing any missing properties or unresolved <code>${...}</code> placeholders.</li>
 <li>Properties must be set in the properties files and cannot be overridden by environment variables.</li>
 <li>If you encounter issues with authentication or configuration retrieval, check certificate validity and trust relationships.</li>
 </ul>
@@ -1414,7 +1422,7 @@ For full licensing terms, see <a href="../OGL_LICENSE.md">OGL_LICENSE.md</a>.</p
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="September 29, 2026 21:21:17 UTC">September 29, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 23, 2026 16:46:30 UTC">October 23, 2026</span>
   </span>
 
     

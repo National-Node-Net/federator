@@ -558,13 +558,41 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#common-configuration-properties" class="md-nav__link">
+  <a href="#identity-provider-idp-properties" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Common Configuration Properties
+        Identity Provider (IDP) Properties
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Identity Provider (IDP) Properties">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#environment-variable-placeholders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Variable Placeholders
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrating-from-common-configurationproperties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrating from common-configuration.properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -811,13 +839,41 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#common-configuration-properties" class="md-nav__link">
+  <a href="#identity-provider-idp-properties" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Common Configuration Properties
+        Identity Provider (IDP) Properties
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Identity Provider (IDP) Properties">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#environment-variable-placeholders" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment Variable Placeholders
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#migrating-from-common-configurationproperties" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migrating from common-configuration.properties
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -945,12 +1001,14 @@
 
 <hr />
 <h2 id="overview">Overview</h2>
-<p>This document describes the configuration properties for the Federator server, including connection settings, filtering, and common configuration options shared across Federator components.</p>
+<p>This document describes the configuration properties for the Federator server, including connection settings, filtering, and Identity Provider (IDP) settings.</p>
 <h2 id="configuration-files">Configuration Files</h2>
 <ul>
-<li><strong>server.properties</strong>: Main server configuration. Location defined by the <code>FEDERATOR_SERVER_PROPERTIES</code> environment variable.</li>
-<li><strong>common-configuration.properties</strong>: Contains properties shared by both server and client. Location defined by the <code>FEDERATOR_COMMON_PROPERTIES</code> environment variable.</li>
+<li><strong>server.properties</strong>: The single server configuration file, including the Identity Provider (<code>idp.*</code>) properties. Location defined by the <code>FEDERATOR_SERVER_PROPERTIES</code> environment variable.</li>
 </ul>
+<blockquote>
+<p>A separate <code>common-configuration.properties</code> file is no longer required. See <a href="#migrating-from-common-configurationproperties">Migrating from common-configuration.properties</a>.</p>
+</blockquote>
 <h2 id="server-properties">Server Properties</h2>
 <table>
 <thead>
@@ -1016,8 +1074,8 @@
 </table>
 <p><strong>Note:</strong>
 - The <code>consumer.inactivity.timeout</code> property controls how long the server will wait for messages before disconnecting a consumer due to inactivity. If no messages are received within this duration, the consumer connection is closed automatically. This helps free up resources and ensures efficient operation.</p>
-<h2 id="common-configuration-properties">Common Configuration Properties</h2>
-<p>Common properties are defined in <code>common-configuration.properties</code> and may include:</p>
+<h2 id="identity-provider-idp-properties">Identity Provider (IDP) Properties</h2>
+<p>The IDP properties are defined directly in <code>server.properties</code>:</p>
 <table>
 <thead>
 <tr>
@@ -1066,13 +1124,63 @@
 <td><code>idp.truststore.password</code></td>
 <td>Password for the truststore</td>
 </tr>
+</tbody>
+</table>
+<p>These settings ensure secure authentication and authorisation between Federator components and the Identity Provider, supporting both mTLS and OAuth2 flows.</p>
+<p>The server validates the IDP configuration at startup and exits with a clear error if a required property is missing or still contains an unresolved <code>${...}</code> placeholder (the IDP URLs, client ID and credentials have empty defaults in the sample file, so they must be provided):</p>
+<ul>
+<li>Always required: <code>idp.token.url</code>, <code>idp.jwks.url</code>, <code>idp.client.id</code></li>
+<li>When <code>idp.mtls.enabled=true</code>: <code>idp.keystore.path</code>, <code>idp.truststore.path</code></li>
+<li>When <code>idp.mtls.enabled=false</code>: <code>idp.client.secret</code></li>
+</ul>
+<h3 id="environment-variable-placeholders">Environment Variable Placeholders</h3>
+<p>Every value in the sample <code>server.properties</code> is written as a <code>${ENV_VAR:default}</code> placeholder, which the application resolves at startup (similar to Spring Boot):</p>
+<table>
+<thead>
 <tr>
-<td>...</td>
-<td>Other shared properties as required</td>
+<th>Syntax</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>${IDP_CLIENT_ID}</code></td>
+<td>Value of <code>IDP_CLIENT_ID</code>; left unresolved if it is not set</td>
+</tr>
+<tr>
+<td><code>${IDP_TOKEN_BACKOFF:1000}</code></td>
+<td>Value of <code>IDP_TOKEN_BACKOFF</code>, or <code>1000</code> if it is not set</td>
+</tr>
+<tr>
+<td><code>${IDP_CLIENT_SECRET:}</code></td>
+<td>Value of <code>IDP_CLIENT_SECRET</code>, or an empty value if it is not set</td>
+</tr>
+<tr>
+<td><code>https://${IDP_HOST}:${IDP_PORT:8443}/token</code></td>
+<td>Several placeholders in one value</td>
+</tr>
+<tr>
+<td><code>${PRIMARY:${SECONDARY:fallback}}</code></td>
+<td>Nested defaults</td>
+</tr>
+<tr>
+<td><code>${idp.base.url}/token</code></td>
+<td>Reference to another property in the same file</td>
 </tr>
 </tbody>
 </table>
-<p>All properties can be set directly or via environment variables (see <code>${...}</code> syntax in the file). These settings ensure secure authentication and authorisation between Federator components and the Identity Provider, supporting both mTLS and OAuth2 flows.</p>
+<ul>
+<li>Each placeholder name is looked up, in order, as a JVM system property (<code>-DIDP_CLIENT_ID=...</code>), an environment variable, then another property in the file; the default after the first <code>:</code> applies only when none is found.</li>
+<li>An environment variable that is set to an empty string counts as set, so the default does not apply.</li>
+<li>The sample files name each variable after its property: upper case, <code>.</code> replaced by <code>_</code> and <code>-</code> removed (e.g. <code>management.node.base.url</code> → <code>MANAGEMENT_NODE_BASE_URL</code>, <code>opa.decision-path</code> → <code>OPA_DECISIONPATH</code>).</li>
+<li>To use a literal <code>${...}</code> in a value, escape it as <code>\\${...}</code> in the file.</li>
+<li>Placeholders that cannot be resolved and have no default are logged at startup (property names only, never values). For the required <code>idp.*</code> properties this stops startup with an <code>Invalid Identity Provider configuration</code> error.</li>
+<li><code>-Dkey=value</code> system properties (for example <code>-Didp.client.id=...</code>) still override a whole property, before placeholders are resolved.</li>
+</ul>
+<p>This works the same when running the jar directly and in containers; no <code>envsubst</code> step is needed.</p>
+<h3 id="migrating-from-common-configurationproperties">Migrating from common-configuration.properties</h3>
+<p>Earlier releases loaded the <code>idp.*</code> properties from a separate file referenced by <code>common.configuration</code>. To migrate, copy the <code>idp.*</code> properties into <code>server.properties</code> and remove the <code>common.configuration</code> property (and, for containers, the <code>/config-templates/common-configuration.properties</code> mount).</p>
+<p>Existing setups keep working in the meantime: if <code>common.configuration</code> is still set, the referenced file is loaded and merged, with values in <code>server.properties</code> taking precedence, and a deprecation warning is logged. This fallback will be removed in a future release.</p>
 <h2 id="custom-filter-configuration">Custom Filter Configuration</h2>
 <p>Federator supports custom filtering logic for Kafka messages. The producer (server) receives consumer attribute configuration from the Management-Node as JSON, for example:</p>
 <div class="language-json highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="p">{</span>
@@ -1199,7 +1307,7 @@ For full licensing terms, see <a href="../OGL_LICENSE.md">OGL_LICENSE.md</a>.</p
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="September 29, 2026 21:21:17 UTC">September 29, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 23, 2026 16:46:30 UTC">October 23, 2026</span>
   </span>
 
     
