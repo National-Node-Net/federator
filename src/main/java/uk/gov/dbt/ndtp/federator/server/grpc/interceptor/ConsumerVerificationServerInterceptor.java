@@ -35,7 +35,7 @@ public class ConsumerVerificationServerInterceptor implements ServerInterceptor 
     private static final String BEARER_PREFIX = "Bearer ";
     private static final String IDP_CLIENT_ID = "idp.client.id";
     private final IdpTokenService idpTokenService;
-    private final Properties commonProperties;
+    private final Properties idpProperties;
 
     /**
      * Intercepts incoming gRPC calls to verify consumer identity.
@@ -106,7 +106,7 @@ public class ConsumerVerificationServerInterceptor implements ServerInterceptor 
 
     private <T, R> boolean validateAudience(String token, ServerCall<T, R> call) {
         List<String> audiences = idpTokenService.extractAudiencesFromToken(token);
-        String idpClientId = commonProperties.getProperty(IDP_CLIENT_ID);
+        String idpClientId = idpProperties.getProperty(IDP_CLIENT_ID);
         boolean audienceMatches = audiences != null
                 && audiences.stream().filter(Objects::nonNull).anyMatch(aud -> aud.equalsIgnoreCase(idpClientId));
         if (!audienceMatches) {

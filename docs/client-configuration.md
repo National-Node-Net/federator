@@ -9,12 +9,13 @@
 
 ## Overview
 
-This document describes the configuration properties for the Federator client, including connection settings, job parameters, caching, management node, dynamic configuration, and common configuration options shared across Federator components.
+This document describes the configuration properties for the Federator client, including connection settings, job parameters, caching, management node, dynamic configuration, and Identity Provider (IDP) settings.
 
 ## Configuration Files
 
-- **client.properties**: Main client configuration. Location defined by the `FEDERATOR_CLIENT_PROPERTIES` environment variable.
-- **common-configuration.properties**: Contains properties shared by both server and client. Location defined by the `common.configuration` property in `client.properties`.
+- **client.properties**: The single client configuration file, including the Identity Provider (`idp.*`) properties. Location defined by the `FEDERATOR_CLIENT_PROPERTIES` environment variable.
+
+> A separate `common-configuration.properties` file is no longer required. See [Migrating from common-configuration.properties](#migrating-from-common-configurationproperties).
 
 ## Client Properties
 
@@ -43,9 +44,7 @@ This document describes the configuration properties for the Federator client, i
 To run the Federator client, follow these steps:
 
 1. **Prepare Configuration Files:**
-   - Ensure `client.properties` contains all required client-specific settings.
-   - Ensure `common-configuration.properties` contains shared authentication and security properties.
-   - Set the `common.configuration` property in `client.properties` to the path of your `common-configuration.properties` file.
+   - Ensure `client.properties` contains all required client settings, including the `idp.*` authentication and security properties.
 
 2. **Set Environment Variables:**
    - `FEDERATOR_CLIENT_PROPERTIES`: Path to your `client.properties` file.
@@ -60,10 +59,14 @@ To run the Federator client, follow these steps:
      ```zsh
      java -jar federator-client.jar
      ```
-   - If using Docker:
+     Values are taken from environment variables where set (see [Environment Variable Placeholders](#environment-variable-placeholders)), e.g. `IDP_CLIENT_ID=... java -jar federator-client.jar`.
+   - If using Docker, mount the file and pass the environment variables to override:
      ```zsh
      docker run --env FEDERATOR_CLIENT_PROPERTIES=/config/client.properties \
-                -v /local/config:/config \
+                --env IDP_CLIENT_ID=... --env IDP_TOKEN_URL=... --env IDP_JWKS_URL=... \
+                --env IDP_KEYSTORE_PATH=... --env IDP_KEYSTORE_PASSWORD=... \
+                --env IDP_TRUSTSTORE_PATH=... --env IDP_TRUSTSTORE_PASSWORD=... \
+                -v /local/config/client.properties:/config/client.properties:ro \
                 federator-client:latest
      ```
 
@@ -74,11 +77,10 @@ To run the Federator client, follow these steps:
 **Note:**
 - All configuration properties must be set in the respective files. Properties cannot be overridden by environment variables.
 - The client will dynamically obtain server connection details from the management node as described above.
-- The location of `common-configuration.properties` is set by the `common.configuration` property in `client.properties`.
 
-## Common Configuration Properties
+## Identity Provider (IDP) Properties
 
-Common properties are defined in `common-configuration.properties` and may include:
+The IDP properties are defined directly in `client.properties`:
 
 | Property | Description |
 |----------|-------------|
@@ -92,9 +94,42 @@ Common properties are defined in `common-configuration.properties` and may inclu
 | `idp.keystore.password` | Password for the client keystore |
 | `idp.truststore.path` | Path to truststore containing the IDP's root CA or certificate chain |
 | `idp.truststore.password` | Password for the truststore |
-| ... | Other shared properties as required |
 
 These settings ensure secure authentication and authorisation between Federator components and the Identity Provider, supporting both mTLS and OAuth2 flows.
+
+The client validates the IDP configuration at startup and exits with a clear error if a required property is missing or still contains an unresolved `${...}` placeholder (the IDP URLs, client ID and credentials have empty defaults in the sample file, so they must be provided):
+
+- Always required: `idp.token.url`, `idp.jwks.url`, `idp.client.id`
+- When `idp.mtls.enabled=true`: `idp.keystore.path`, `idp.truststore.path`
+- When `idp.mtls.enabled=false`: `idp.client.secret`
+
+### Environment Variable Placeholders
+
+Every value in the sample `client.properties` is written as a `${ENV_VAR:default}` placeholder, which the application resolves at startup (similar to Spring Boot):
+
+| Syntax | Meaning |
+|--------|---------|
+| `${IDP_CLIENT_ID}` | Value of `IDP_CLIENT_ID`; left unresolved if it is not set |
+| `${IDP_TOKEN_BACKOFF:1000}` | Value of `IDP_TOKEN_BACKOFF`, or `1000` if it is not set |
+| `${IDP_CLIENT_SECRET:}` | Value of `IDP_CLIENT_SECRET`, or an empty value if it is not set |
+| `https://${IDP_HOST}:${IDP_PORT:8443}/token` | Several placeholders in one value |
+| `${PRIMARY:${SECONDARY:fallback}}` | Nested defaults |
+| `${idp.base.url}/token` | Reference to another property in the same file |
+
+- Each placeholder name is looked up, in order, as a JVM system property (`-DIDP_CLIENT_ID=...`), an environment variable, then another property in the file; the default after the first `:` applies only when none is found.
+- An environment variable that is set to an empty string counts as set, so the default does not apply.
+- The sample files name each variable after its property: upper case, `.` replaced by `_` and `-` removed (e.g. `management.node.base.url` → `MANAGEMENT_NODE_BASE_URL`, `opa.decision-path` → `OPA_DECISIONPATH`).
+- To use a literal `${...}` in a value, escape it as `\\${...}` in the file.
+- Placeholders that cannot be resolved and have no default are logged at startup (property names only, never values). For the required `idp.*` properties this stops startup with an `Invalid Identity Provider configuration` error.
+- `-Dkey=value` system properties (for example `-Didp.client.id=...`) still override a whole property, before placeholders are resolved.
+
+This works the same when running the jar directly and in containers; no `envsubst` step is needed.
+
+### Migrating from common-configuration.properties
+
+Earlier releases loaded the `idp.*` properties from a separate file referenced by `common.configuration`. To migrate, copy the `idp.*` properties into `client.properties` and remove the `common.configuration` property (and, for containers, the `/config-templates/common-configuration.properties` mount).
+
+Existing setups keep working in the meantime: if `common.configuration` is still set, the referenced file is loaded and merged, with values in `client.properties` taking precedence, and a deprecation warning is logged. This fallback will be removed in a future release.
 
 ## Dynamic Consumer Configuration via Management Node
 
@@ -102,7 +137,7 @@ Federator clients dynamically obtain their server connection details from the ma
 
 1. **JWT Token Acquisition via mTLS:**
    - The client authenticates with the Identity Provider (IDP, e.g., Keycloak) using mutual TLS (mTLS) and obtains a JWT token.
-   - Relevant properties for mTLS and OAuth2 are set in `common-configuration.properties` (see above).
+   - Relevant properties for mTLS and OAuth2 are the `idp.*` properties in `client.properties` (see above).
 
 2. **Management Node Authentication:**
    - The client uses the JWT token to authenticate with the management node (configured via `management.node.host` and `management.node.port`).
@@ -158,7 +193,7 @@ Each producer in the response represents a server the client can connect to. The
 **Required Properties:**
 - `management.node.host`: Hostname of the management node.
 - `management.node.port`: Port of the management node.
-- mTLS and OAuth2 properties in `common-configuration.properties` for JWT acquisition.
+- mTLS and OAuth2 (`idp.*`) properties in `client.properties` for JWT acquisition.
 
 This approach allows clients to be dynamically configured and managed, supporting secure, scalable, and flexible data integration.
 
@@ -206,7 +241,7 @@ Federator clients use an Auth Client Interceptor to ensure secure, authenticated
 
 - Ensures each request is authenticated and authorized according to the security policies of the management node and producers.
 - Integrates seamlessly with dynamic configuration and the job scheduler, so all connections established as a result of job scheduling or configuration updates are properly secured.
-- Relies on the mTLS and OAuth2 properties in `common-configuration.properties` for token acquisition and management.
+- Relies on the mTLS and OAuth2 (`idp.*`) properties in `client.properties` for token acquisition and management.
 
 No additional configuration is required for the interceptor beyond the standard authentication properties. This approach guarantees that all client-server interactions are protected and compliant with Federator's security requirements.
 
@@ -223,8 +258,7 @@ sequenceDiagram
     participant ProducerServer
 
     User->>Client: Start client process
-    Client->>ConfigFiles: Load client.properties
-    Client->>ConfigFiles: Load common-configuration.properties (via common.configuration)
+    Client->>ConfigFiles: Load client.properties (including idp.* properties)
     Client->>IDP: Authenticate using mTLS, request JWT
     IDP-->>Client: Return JWT token
     Client->>ManagementNode: Authenticate with JWT, request dynamic config
@@ -247,7 +281,7 @@ C4Container
 
 Person(user, "User", "Initiates and monitors client operation")
 System(client, "Federator Client", "Main client application")
-Container(config, "Configuration Files", "Properties Files", "client.properties, common-configuration.properties")
+Container(config, "Configuration File", "Properties File", "client.properties")
 Container(idp, "Identity Provider (IDP)", "OAuth2/Keycloak", "Issues JWT tokens via mTLS")
 Container(mgmt, "Management Node", "Federator Management Node", "Provides dynamic configuration and job info")
 Container(job, "Job Scheduler", "JobRunr/Quartz", "Schedules, refreshes, and deletes jobs")

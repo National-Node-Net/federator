@@ -18,6 +18,19 @@ include:
   - docker-grpc-resources/docker-compose-shared.yml
 
 name: grpc-single-client-ten-servers-performance-test
+# Identity Provider settings, resolved by the application from ${IDP_*:default}
+# placeholders in the mounted properties files. Each variable is only passed to
+# the container when it is set in the shell or in .env, so the file defaults apply otherwise.
+x-idp-environment: &idp-environment
+  IDP_CLIENT_ID:
+  IDP_CLIENT_SECRET:
+  IDP_TOKEN_URL:
+  IDP_JWKS_URL:
+  IDP_KEYSTORE_PATH:
+  IDP_KEYSTORE_PASSWORD:
+  IDP_TRUSTSTORE_PATH:
+  IDP_TRUSTSTORE_PASSWORD:
+
 services:
 
   zookeeper-target-2:
@@ -83,6 +96,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8080:8080"
@@ -92,7 +106,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server1.properties:/config/server.properties
+      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server1.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8080 || exit 1"
@@ -109,6 +123,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8081:8081"
@@ -118,7 +133,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server2.properties:/config/server.properties
+      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server2.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8081 || exit 1"
@@ -135,6 +150,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8082:8082"
@@ -144,7 +160,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server3.properties:/config/server.properties
+      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server3.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8082 || exit 1"
@@ -161,6 +177,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8083:8083"
@@ -170,7 +187,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server4.properties:/config/server.properties
+      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server4.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8083 || exit 1"
@@ -187,6 +204,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8084:8084"
@@ -196,7 +214,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server5.properties:/config/server.properties
+      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server5.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8084 || exit 1"
@@ -213,6 +231,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8085:8085"
@@ -222,7 +241,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server6.properties:/config/server.properties
+      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server6.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8085 || exit 1"
@@ -239,6 +258,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8086:8086"
@@ -248,7 +268,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server7.properties:/config/server.properties
+      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server7.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8086 || exit 1"
@@ -265,6 +285,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8087:8087"
@@ -274,7 +295,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server8.properties:/config/server.properties
+      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server8.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8087 || exit 1"
@@ -291,6 +312,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8088:8088"
@@ -300,7 +322,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server9.properties:/config/server.properties
+      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server9.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8088 || exit 1"
@@ -317,6 +339,7 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8089:8089"
@@ -326,7 +349,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server10.properties:/config/server.properties
+      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/server10.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8089 || exit 1"
@@ -343,11 +366,12 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/client1.properties:/config/client.properties
+      - ./docker-grpc-resources/performance-tests/single-client-ten-servers/client1.properties:/config-templates/client.properties
     healthcheck:
       test: "bash -c \"pgrep -f federator-client || exit 1\""
       interval: 10s

@@ -23,16 +23,29 @@ include:
   - docker-grpc-resources/docker-compose-shared.yml
 
 name: grpc
+# Identity Provider settings, resolved by the application from ${IDP_*:default}
+# placeholders in the mounted properties files. Each variable is only passed to
+# the container when it is set in the shell or in .env, so the file defaults apply otherwise.
+x-idp-environment: &idp-environment
+  IDP_CLIENT_ID:
+  IDP_CLIENT_SECRET:
+  IDP_TOKEN_URL:
+  IDP_JWKS_URL:
+  IDP_KEYSTORE_PATH:
+  IDP_KEYSTORE_PASSWORD:
+  IDP_TRUSTSTORE_PATH:
+  IDP_TRUSTSTORE_PASSWORD:
+
 services:
   federator-server:
-#    image: uk.gov.dbt.ndtp/${ARTIFACT_ID}-server:${VERSION}
-    image: ghcr.io/national-node-net/federator/federator-server:0.90.0
+    image: uk.gov.dbt.ndtp/${ARTIFACT_ID}-server:${VERSION}
     container_name: federator-server
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_SERVER_PROPERTIES: /config/server.properties
     ports:
       - "127.0.0.1:8080:8080"
@@ -42,7 +55,7 @@ services:
       kafka-src:
         condition: service_healthy
     volumes:
-      - ./docker-grpc-resources/server.properties:/config/server.properties
+      - ./docker-grpc-resources/server.properties:/config-templates/server.properties
       - ./filter:/library
     healthcheck:
       test: "curl -f http://localhost:8080 || exit 1"
@@ -52,19 +65,19 @@ services:
     restart: on-failure
 
   federator-client:
-#    image: uk.gov.dbt.ndtp/${ARTIFACT_ID}-client:${VERSION}
-    image: ghcr.io/national-node-net/federator/federator-client:0.90.0
+    image: uk.gov.dbt.ndtp/${ARTIFACT_ID}-client:${VERSION}
     container_name: federator-client
     cap_drop:
       - ALL
     security_opt:
       - no-new-privileges:true
     environment:
+      <<: *idp-environment
       FEDERATOR_CLIENT_PROPERTIES: /config/client.properties
     networks:
       - core
     volumes:
-      - ./docker-grpc-resources/client.properties:/config/client.properties
+      - ./docker-grpc-resources/client.properties:/config-templates/client.properties
     healthcheck:
       test: "bash -c \"pgrep -f federator-client || exit 1\""
       interval: 10s

@@ -16,7 +16,6 @@ import uk.gov.dbt.ndtp.federator.common.service.idp.IdpTokenService;
 import uk.gov.dbt.ndtp.federator.common.storage.InMemoryConfigurationStore;
 
 public class ProducerConsumerConfigServiceFactory {
-    private static final String COMMON_CONFIG_PROPERTIES = "common.configuration";
     private static ProducerConfigService producerConfigService;
 
     private ProducerConsumerConfigServiceFactory() {}
@@ -31,7 +30,7 @@ public class ProducerConsumerConfigServiceFactory {
         if (producerConfigService == null) {
             synchronized (ProducerConsumerConfigServiceFactory.class) {
                 ObjectMapper mapper = ObjectMapperUtil.getInstance();
-                Properties properties = PropertyUtil.getPropertiesFromFilePath(COMMON_CONFIG_PROPERTIES);
+                Properties properties = PropertyUtil.getIdpProperties();
                 IdpTokenService tokenService = GRPCUtils.createIdpTokenService();
                 HttpClient httpClient = HttpClientFactoryUtils.createHttpClientWithMtls(properties);
                 var managementNodeDataHandler = new ManagementNodeDataHandler(httpClient, mapper, tokenService);

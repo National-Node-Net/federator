@@ -105,13 +105,13 @@ public class GRPCServer implements AutoCloseable {
 
     private ServerBuilder<?> configureServerBuilder(ServerBuilder<?> builder, Set<String> sharedHeaders) {
         IdpTokenService tokenService = GRPCUtils.createIdpTokenService();
-        Properties commonProperties = PropertyUtil.getPropertiesFromFilePath(COMMON_CONFIG_PROPERTIES);
+        Properties idpProperties = PropertyUtil.getIdpProperties();
         return builder.executor(ThreadUtil.threadExecutor(GRPC_SERVER))
                 .keepAliveTime(PropertyUtil.getPropertyIntValue(SERVER_KEEP_ALIVE_TIME, FIVE), TimeUnit.SECONDS)
                 .keepAliveTimeout(PropertyUtil.getPropertyIntValue(SERVER_KEEP_ALIVE_TIMEOUT, ONE), TimeUnit.SECONDS)
                 .addService(ServerInterceptors.intercept(
                         new GRPCFederatorService(sharedHeaders),
-                        new ConsumerVerificationServerInterceptor(tokenService, commonProperties),
+                        new ConsumerVerificationServerInterceptor(tokenService, idpProperties),
                         new AuthServerInterceptor(tokenService),
                         new CustomServerInterceptor()));
     }

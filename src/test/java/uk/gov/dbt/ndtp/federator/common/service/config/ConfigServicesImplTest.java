@@ -29,7 +29,7 @@ class ConfigServicesImplTest {
         PropertyUtil.clear();
         dataHandler = mock(ManagementNodeDataHandler.class);
         store = mock(InMemoryConfigurationStore.class);
-        PropertyUtil.init("common-configuration.properties");
+        PropertyUtil.init("client.properties");
     }
 
     @AfterEach

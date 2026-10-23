@@ -26,8 +26,7 @@ class ProducerConsumerConfigServiceFactoryTest {
 
             Properties props = new Properties();
             props.setProperty("management.node.base.url", "http://localhost");
-            propMock.when(() -> PropertyUtil.getPropertiesFromFilePath(anyString()))
-                    .thenReturn(props);
+            propMock.when(() -> PropertyUtil.getIdpProperties()).thenReturn(props);
             propMock.when(() -> PropertyUtil.getPropertyValue(eq("management.node.base.url"), anyString()))
                     .thenReturn("http://localhost");
             propMock.when(() -> PropertyUtil.getPropertyValue(eq("management.node.request.timeout"), anyString()))

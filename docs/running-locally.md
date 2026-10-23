@@ -64,7 +64,7 @@ Please see the following links for configuration details:
 #### Key Properties
 
 - **client.properties**: Main client configuration. Location defined by the `FEDERATOR_CLIENT_PROPERTIES` environment variable.
-- `common.configuration`: Path to the common configuration file, set in `client.properties` (e.g., `common.configuration=src/configs/common-configuration.properties`).
+- `idp.*`: Identity Provider (Keycloak) settings, set directly in `client.properties` and `server.properties`. The sample files use `${ENV_VAR:default}` placeholders, so values can be supplied as environment variables (see below).
 - `management.node.base.url`: URL of the Management Node (e.g., `https://localhost:8090`).
 - `management.node.request.timeout`: Timeout for Management Node requests.
 - `management.node.cache.ttl.seconds`: Cache TTL for Management Node responses.
@@ -169,6 +169,13 @@ export FEDERATOR_SERVER_PROPERTIES=./src/configs/server.properties
 
 This will configure the server to use the properties file [server.properties](../src/configs/server.properties) 
 
+Every value in the sample file is a `${ENV_VAR:default}` placeholder, so you can override any setting with an environment variable. The Identity Provider settings have no usable defaults and must be exported before starting:
+
+```shell
+export IDP_CLIENT_ID=... IDP_TOKEN_URL=... IDP_JWKS_URL=... IDP_CLIENT_SECRET=...
+export IDP_KEYSTORE_PATH=... IDP_KEYSTORE_PASSWORD=... IDP_TRUSTSTORE_PATH=... IDP_TRUSTSTORE_PASSWORD=...
+```
+
 - Start the server code contained in a jar file:
 
 ```shell
@@ -183,7 +190,14 @@ java -jar ./target/federator-server-0.3.0.jar
 export FEDERATOR_CLIENT_PROPERTIES=./src/configs/client.properties 
 ```
 
-This will set the client to use the properties file [client.properties](../src/configs/client.properties) and the related common configuration file as defined by the `common.configuration` property.
+This will set the client to use the properties file [client.properties](../src/configs/client.properties), which also contains the `idp.*` Identity Provider settings.
+
+Every value in the sample file is a `${ENV_VAR:default}` placeholder, so you can override any setting with an environment variable. The Identity Provider settings have no usable defaults and must be exported before starting:
+
+```shell
+export IDP_CLIENT_ID=... IDP_TOKEN_URL=... IDP_JWKS_URL=... IDP_CLIENT_SECRET=...
+export IDP_KEYSTORE_PATH=... IDP_KEYSTORE_PASSWORD=... IDP_TRUSTSTORE_PATH=... IDP_TRUSTSTORE_PASSWORD=...
+```
 
 
 - Start the client code contained in a jar file:
@@ -231,7 +245,7 @@ docker exec -it kafka-src kafka-console-consumer --bootstrap-server localhost:19
 
 - Ensure Management Node, Keycloak, and Postgres are running and accessible from Federator.
 - Check mTLS certificates, keystore, and truststore configuration for all components.
-- Verify that the `common.configuration` property in `client.properties` points to the correct file.
+- Verify that the `idp.*` properties in `client.properties` and `server.properties` are set. The application exits at startup with an `Invalid Identity Provider configuration` error listing any missing properties or unresolved `${...}` placeholders.
 - Properties must be set in the properties files and cannot be overridden by environment variables.
 - If you encounter issues with authentication or configuration retrieval, check certificate validity and trust relationships.
 

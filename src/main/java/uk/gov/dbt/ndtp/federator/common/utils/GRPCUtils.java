@@ -12,6 +12,8 @@ import java.net.http.HttpClient;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.TrustManager;
@@ -22,9 +24,13 @@ import uk.gov.dbt.ndtp.federator.common.service.idp.IdpTokenServiceClientSecretI
 import uk.gov.dbt.ndtp.federator.common.service.idp.IdpTokenServiceMtlsImpl;
 
 public class GRPCUtils {
-    public static final String COMMON_CONFIG_PROPERTIES = "common.configuration";
     public static final String SHA_256 = "SHA-256";
     private static final String IDP_MTLS_ENABLED_PROPERTY = "idp.mtls.enabled";
+    private static final List<String> IDP_REQUIRED_PROPERTIES =
+            List.of("idp.token.url", "idp.jwks.url", "idp.client.id");
+    private static final List<String> IDP_REQUIRED_MTLS_PROPERTIES =
+            List.of("idp.keystore.path", "idp.truststore.path");
+    private static final List<String> IDP_REQUIRED_CLIENT_SECRET_PROPERTIES = List.of("idp.client.secret");
     private static final Logger LOGGER = LoggerFactory.getLogger("GRPCUtils");
 
     private GRPCUtils() {
@@ -33,9 +39,10 @@ public class GRPCUtils {
 
     public static IdpTokenService createIdpTokenService() {
 
-        Properties properties = PropertyUtil.getPropertiesFromFilePath(COMMON_CONFIG_PROPERTIES);
+        Properties properties = PropertyUtil.getIdpProperties();
         boolean isMtlsEnabled = Boolean.parseBoolean(properties.getProperty(IDP_MTLS_ENABLED_PROPERTY, "false"));
         LOGGER.warn("===========Idp mTLS enabled: {}============", isMtlsEnabled);
+        validateIdpProperties(properties, isMtlsEnabled);
 
         HttpClient client = isMtlsEnabled
                 ? HttpClientFactoryUtils.createHttpClientWithMtls(properties)
@@ -45,6 +52,34 @@ public class GRPCUtils {
         return isMtlsEnabled
                 ? new IdpTokenServiceMtlsImpl(client, mapper)
                 : new IdpTokenServiceClientSecretImpl(client, mapper);
+    }
+
+    /**
+     * Fails fast at startup when the Identity Provider configuration is incomplete, instead of failing later on the
+     * first token request. A value still containing a {@code ${...}} placeholder means the properties file was not
+     * rendered with the required environment variables (the container entrypoint does this with envsubst).
+     */
+    static void validateIdpProperties(Properties properties, boolean isMtlsEnabled) {
+        List<String> required = new ArrayList<>(IDP_REQUIRED_PROPERTIES);
+        required.addAll(isMtlsEnabled ? IDP_REQUIRED_MTLS_PROPERTIES : IDP_REQUIRED_CLIENT_SECRET_PROPERTIES);
+
+        List<String> missing = new ArrayList<>();
+        List<String> unresolved = new ArrayList<>();
+        for (String key : required) {
+            String value = properties.getProperty(key);
+            if (value == null || value.isBlank()) {
+                missing.add(key);
+            } else if (value.contains("${")) {
+                unresolved.add(key);
+            }
+        }
+        if (!missing.isEmpty() || !unresolved.isEmpty()) {
+            throw new PropertyUtil.PropertyUtilException(String.format(
+                    "Invalid Identity Provider configuration (idp.mtls.enabled=%s). Missing properties: %s. "
+                            + "Properties with unresolved ${...} placeholders: %s. "
+                            + "Define the idp.* properties in the server/client properties file.",
+                    isMtlsEnabled, missing, unresolved));
+        }
     }
 
     /**
@@ -111,7 +146,7 @@ public class GRPCUtils {
     }
 
     /**
-     * Create TrustManagerFactory from JKS file path
+     * Create TrustManagerFactory from PKCS12 truststore file path
      */
     private static TrustManager[] createTrustManager() {
         String trustStoreFilePath = PropertyUtil.getPropertyValue(CLIENT_TRUSTSTORE_FILE_PATH);

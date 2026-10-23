@@ -38,6 +38,16 @@ See [client configuration](../docs/client-configuration.md) for more details.
 
 See [authentication configuration](../docs/authentication.md) for more details.
 
+#### Property files and Identity Provider settings
+
+Each server and client uses a single properties file; the Identity Provider (`idp.*`) settings live in that same file, so no separate `common-configuration.properties` is needed.
+
+- Every value in the properties files is a `${ENV_VAR:default}` placeholder that the application resolves at startup, so any setting can be overridden by setting the named environment variable on the container (see [server configuration](../docs/server-configuration.md#environment-variable-placeholders)).
+- The compose files mount each properties file under `/config-templates/`; the entrypoint copies it to `/config/` (this also supports read-only Kubernetes ConfigMap mounts). Files mounted directly at `/config/` work too.
+- The compose files pass `IDP_CLIENT_ID`, `IDP_CLIENT_SECRET`, `IDP_TOKEN_URL`, `IDP_JWKS_URL`, `IDP_KEYSTORE_PATH`, `IDP_KEYSTORE_PASSWORD`, `IDP_TRUSTSTORE_PATH` and `IDP_TRUSTSTORE_PASSWORD` through from your shell or the [**.env**](.env) file, only when they are set. If a required one is missing, the application exits at start-up with an `Invalid Identity Provider configuration` error naming the missing properties.
+
+Older deployments that still mount `/config-templates/common-configuration.properties` and set `common.configuration` keep working; the entrypoint and application log a deprecation warning, and `${...}` placeholders in that file are resolved the same way. Move the `idp.*` properties into the server/client properties file to migrate.
+
 
 ### Logging configuration
 

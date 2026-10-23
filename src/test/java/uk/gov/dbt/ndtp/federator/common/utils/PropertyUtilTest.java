@@ -395,4 +395,142 @@ class PropertyUtilTest {
         assertThrows(
                 PropertyUtil.PropertyUtilException.class, () -> PropertyUtil.getPropertiesFromFilePath("invalid.key"));
     }
+
+    private File writeProperties(String fileName, Properties props) throws IOException {
+        File file = new File(tempDir, fileName);
+        try (FileOutputStream out = new FileOutputStream(file)) {
+            props.store(out, null);
+        }
+        return file;
+    }
+
+    @Test
+    void test_getIdpProperties_returnsOnlyIdpKeysFromMainFile() throws IOException {
+        Properties main = new Properties();
+        main.setProperty("idp.client.id", "main-client");
+        main.setProperty("redis.host", "localhost");
+        PropertyUtil.clear();
+        PropertyUtil.init(writeProperties("main.properties", main));
+
+        Properties idp = PropertyUtil.getIdpProperties();
+        assertEquals("main-client", idp.getProperty("idp.client.id"));
+        assertNull(idp.getProperty("redis.host"));
+    }
+
+    @Test
+    void test_legacyCommonConfiguration_mergedWithMainFileTakingPrecedence() throws IOException {
+        Properties common = new Properties();
+        common.setProperty("idp.client.id", "common-client");
+        common.setProperty("idp.token.url", "http://common/token");
+        File commonFile = writeProperties("common-configuration.properties", common);
+
+        Properties main = new Properties();
+        main.setProperty(PropertyUtil.LEGACY_COMMON_CONFIGURATION, commonFile.getAbsolutePath());
+        main.setProperty("idp.client.id", "main-client");
+        PropertyUtil.clear();
+        PropertyUtil.init(writeProperties("main.properties", main));
+
+        assertEquals("main-client", PropertyUtil.getPropertyValue("idp.client.id"));
+        assertEquals("http://common/token", PropertyUtil.getPropertyValue("idp.token.url"));
+    }
+
+    @Test
+    void test_legacyCommonConfiguration_loadedFromClasspath() throws IOException {
+        Properties main = new Properties();
+        main.setProperty(PropertyUtil.LEGACY_COMMON_CONFIGURATION, VALID_FILE);
+        PropertyUtil.clear();
+        PropertyUtil.init(writeProperties("main.properties", main));
+
+        assertEquals("string", PropertyUtil.getPropertyValue("stringValue"));
+    }
+
+    @Test
+    void test_legacyCommonConfiguration_systemPropertyOverridesMergedValue() throws IOException {
+        Properties common = new Properties();
+        common.setProperty("idp.client.id", "common-client");
+        File commonFile = writeProperties("common-configuration.properties", common);
+        Properties main = new Properties();
+        main.setProperty(PropertyUtil.LEGACY_COMMON_CONFIGURATION, commonFile.getAbsolutePath());
+
+        System.setProperty("idp.client.id", "system-client");
+        try {
+            PropertyUtil.clear();
+            PropertyUtil.init(writeProperties("main.properties", main));
+            assertEquals("system-client", PropertyUtil.getPropertyValue("idp.client.id"));
+        } finally {
+            System.clearProperty("idp.client.id");
+        }
+    }
+
+    @Test
+    void test_legacyCommonConfiguration_missingFileFailsFast() throws IOException {
+        Properties main = new Properties();
+        main.setProperty(PropertyUtil.LEGACY_COMMON_CONFIGURATION, "/non/existent/common-configuration.properties");
+        File mainFile = writeProperties("main.properties", main);
+        PropertyUtil.clear();
+
+        assertThrows(PropertyUtil.PropertyUtilException.class, () -> PropertyUtil.init(mainFile));
+    }
+
+    @Test
+    void test_legacyCommonConfiguration_blankValueIsIgnored() throws IOException {
+        Properties main = new Properties();
+        main.setProperty(PropertyUtil.LEGACY_COMMON_CONFIGURATION, " ");
+        main.setProperty("idp.client.id", "main-client");
+        PropertyUtil.clear();
+        PropertyUtil.init(writeProperties("main.properties", main));
+
+        assertEquals("main-client", PropertyUtil.getPropertyValue("idp.client.id"));
+    }
+
+    @Test
+    void test_init_resolvesPlaceholdersWithSystemPropertiesAndDefaults() throws IOException {
+        Properties main = new Properties();
+        main.setProperty("idp.client.id", "${FEDERATOR_TEST_IDP_CLIENT_ID:default-client}");
+        main.setProperty("idp.token.backoff", "${FEDERATOR_TEST_IDP_TOKEN_BACKOFF:1000}");
+        main.setProperty("idp.token.url", "${FEDERATOR_TEST_IDP_BASE:https://idp.example}/token");
+
+        System.setProperty("FEDERATOR_TEST_IDP_CLIENT_ID", "resolved-client");
+        try {
+            PropertyUtil.clear();
+            PropertyUtil.init(writeProperties("main.properties", main));
+            assertEquals("resolved-client", PropertyUtil.getPropertyValue("idp.client.id"));
+            assertEquals(1000, PropertyUtil.getPropertyIntValue("idp.token.backoff"));
+            assertEquals(
+                    "https://idp.example/token", PropertyUtil.getIdpProperties().getProperty("idp.token.url"));
+        } finally {
+            System.clearProperty("FEDERATOR_TEST_IDP_CLIENT_ID");
+        }
+    }
+
+    @Test
+    void test_init_resolvesPlaceholdersInLegacyCommonConfiguration() throws IOException {
+        Properties common = new Properties();
+        common.setProperty("idp.client.id", "${FEDERATOR_TEST_LEGACY_CLIENT_ID:legacy-default}");
+        File commonFile = writeProperties("common-configuration.properties", common);
+        Properties main = new Properties();
+        main.setProperty(PropertyUtil.LEGACY_COMMON_CONFIGURATION, commonFile.getAbsolutePath());
+        PropertyUtil.clear();
+        PropertyUtil.init(writeProperties("main.properties", main));
+
+        assertEquals("legacy-default", PropertyUtil.getPropertyValue("idp.client.id"));
+    }
+
+    @Test
+    void test_init_resolvesPlaceholderInLegacyCommonConfigurationPath() throws IOException {
+        Properties common = new Properties();
+        common.setProperty("idp.client.id", "common-client");
+        File commonFile = writeProperties("common-configuration.properties", common);
+        Properties main = new Properties();
+        main.setProperty(PropertyUtil.LEGACY_COMMON_CONFIGURATION, "${FEDERATOR_TEST_COMMON_CONFIG:/non/existent}");
+
+        System.setProperty("FEDERATOR_TEST_COMMON_CONFIG", commonFile.getAbsolutePath());
+        try {
+            PropertyUtil.clear();
+            PropertyUtil.init(writeProperties("main.properties", main));
+            assertEquals("common-client", PropertyUtil.getPropertyValue("idp.client.id"));
+        } finally {
+            System.clearProperty("FEDERATOR_TEST_COMMON_CONFIG");
+        }
+    }
 }

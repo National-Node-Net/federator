@@ -69,3 +69,4 @@ server.log
 venv/
 .cache/
 /docker/docker-grpc-resources/fake-gcs-data/
+/graphify-out/
