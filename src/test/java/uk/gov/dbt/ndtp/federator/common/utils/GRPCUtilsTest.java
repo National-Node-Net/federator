@@ -87,7 +87,7 @@ class GRPCUtilsTest {
         props.setProperty("idp.client.id", "test-client-id");
         if (mtlsEnabled) {
             props.setProperty("idp.keystore.path", "keystore.p12");
-            props.setProperty("idp.truststore.path", "truststore.jks");
+            props.setProperty("idp.truststore.path", "truststore.p12");
         } else {
             props.setProperty("idp.client.secret", "test-client-secret");
         }
@@ -190,7 +190,7 @@ class GRPCUtilsTest {
         PropertyUtil.init("test.properties");
         PropertyUtil.getInstance().properties.setProperty("client.p12FilePath", "nonexistent.p12");
         PropertyUtil.getInstance().properties.setProperty("client.p12Password", "pass");
-        PropertyUtil.getInstance().properties.setProperty("client.truststoreFilePath", "nonexistent.jks");
+        PropertyUtil.getInstance().properties.setProperty("client.truststoreFilePath", "nonexistent-truststore.p12");
         PropertyUtil.getInstance().properties.setProperty("client.truststorePassword", "pass");
 
         try (MockedStatic<SSLUtils> sslMock = mockStatic(SSLUtils.class)) {

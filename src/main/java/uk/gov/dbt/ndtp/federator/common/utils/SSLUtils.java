@@ -39,13 +39,16 @@ import lombok.extern.slf4j.Slf4j;
 import uk.gov.dbt.ndtp.federator.exceptions.FederatorSslException;
 
 /**
- * Utility class for creating SSL KeyManager and TrustManager instances from PKCS12 and JKS keystores.
+ * Utility class for creating SSL KeyManager and TrustManager instances from PKCS12 keystores and truststores.
+ * <p>
+ *   Truststores are loaded as PKCS12. Legacy JKS truststores still load because the JDK's default
+ *   {@code keystore.type.compat=true} lets the PKCS12 loader read JKS files.
+ * </p>
  */
 @Slf4j
 public class SSLUtils {
 
     public static final String KEYSTORE_TYPE_PKCS12 = "PKCS12";
-    public static final String KEYSTORE_TYPE_JKS = "JKS";
 
     private SSLUtils() {
         throw new UnsupportedOperationException("Utility class cannot be instantiated");
@@ -91,9 +94,9 @@ public class SSLUtils {
     }
 
     /**
-     * Creates TrustManagers from a JKS file.
+     * Creates TrustManagers from a PKCS12 truststore file.
      *
-     * @param trustStoreFilePath the path to the JKS truststore file
+     * @param trustStoreFilePath the path to the PKCS12 truststore file
      * @param trustStorePassword the password for the truststore
      * @return an array of TrustManagers
      * @throws FederatorSslException if the file is not found or cannot be loaded
@@ -107,9 +110,9 @@ public class SSLUtils {
     }
 
     /**
-     * Creates TrustManagers from a JKS input stream.
+     * Creates TrustManagers from a PKCS12 truststore input stream.
      *
-     * @param trustStoreInputStream the input stream of the JKS truststore file
+     * @param trustStoreInputStream the input stream of the PKCS12 truststore file
      * @param trustStorePassword    the password for the truststore
      * @return an array of TrustManagers
      * @throws FederatorSslException if the input stream is null or cannot be loaded
@@ -119,7 +122,7 @@ public class SSLUtils {
             throw new FederatorSslException("Trust store input stream or password is not set.");
         }
         try {
-            KeyStore trustStore = KeyStore.getInstance(KEYSTORE_TYPE_JKS);
+            KeyStore trustStore = KeyStore.getInstance(KEYSTORE_TYPE_PKCS12);
             trustStore.load(trustStoreInputStream, trustStorePassword.toCharArray());
             TrustManagerFactory tmf = TrustManagerFactory.getInstance(TrustManagerFactory.getDefaultAlgorithm());
             tmf.init(trustStore);
@@ -134,7 +137,7 @@ public class SSLUtils {
      *
      * @param keystorePath the path to the PKCS12 keystore file
      * @param keystorePassword the password for the keystore
-     * @param truststorePath the path to the JKS truststore file
+     * @param truststorePath the path to the PKCS12 truststore file
      * @param truststorePassword the password for the truststore
      * @return an initialized SSLContext
      * */
@@ -152,8 +155,8 @@ public class SSLUtils {
             KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
             kmf.init(keyStore, keystorePassword.toCharArray());
 
-            // Load truststore (JKS)
-            KeyStore trustStore = KeyStore.getInstance(KEYSTORE_TYPE_JKS);
+            // Load truststore (PKCS12)
+            KeyStore trustStore = KeyStore.getInstance(KEYSTORE_TYPE_PKCS12);
             try (InputStream is = new FileInputStream(truststorePath)) {
                 trustStore.load(is, truststorePassword.toCharArray());
             }
@@ -174,14 +177,14 @@ public class SSLUtils {
     /**
      * Creates an SSLContext using only the provided truststore path and password.
      *
-     * @param truststorePath the path to the JKS truststore file
+     * @param truststorePath the path to the PKCS12 truststore file
      * @param truststorePassword the password for the truststore
      * @return an initialized SSLContext
      * */
     public static SSLContext createSSLContextWithTrustStore(String truststorePath, String truststorePassword) {
         try {
-            // Load truststore (JKS)
-            KeyStore trustStore = KeyStore.getInstance(KEYSTORE_TYPE_JKS);
+            // Load truststore (PKCS12)
+            KeyStore trustStore = KeyStore.getInstance(KEYSTORE_TYPE_PKCS12);
             try (InputStream is = new FileInputStream(truststorePath)) {
                 trustStore.load(is, truststorePassword.toCharArray());
             }

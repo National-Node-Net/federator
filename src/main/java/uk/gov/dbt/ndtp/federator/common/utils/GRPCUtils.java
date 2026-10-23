@@ -146,7 +146,7 @@ public class GRPCUtils {
     }
 
     /**
-     * Create TrustManagerFactory from JKS file path
+     * Create TrustManagerFactory from PKCS12 truststore file path
      */
     private static TrustManager[] createTrustManager() {
         String trustStoreFilePath = PropertyUtil.getPropertyValue(CLIENT_TRUSTSTORE_FILE_PATH);

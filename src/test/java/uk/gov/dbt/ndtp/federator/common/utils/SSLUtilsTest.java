@@ -21,6 +21,8 @@ import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import uk.gov.dbt.ndtp.federator.exceptions.FederatorSslException;
 
 /**
@@ -49,10 +51,11 @@ class SSLUtilsTest {
     }
 
     /**
-     * Creates an in-memory JKS truststore with a self-signed certificate for testing.
+     * Creates an in-memory truststore of the given type (PKCS12, or JKS for legacy setups) with a self-signed
+     * certificate for testing.
      */
-    private static ByteArrayInputStream createMockJksTruststore(String password) throws Exception {
-        KeyStore ks = KeyStore.getInstance("JKS");
+    private static ByteArrayInputStream createMockTruststore(String type, String password) throws Exception {
+        KeyStore ks = KeyStore.getInstance(type);
         ks.load(null, null);
 
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
@@ -111,7 +114,8 @@ class SSLUtilsTest {
     @Test
     void testCreateTrustManager_FileNotFound_ThrowsFederatorSslException() {
         FederatorSslException e = assertThrows(
-                FederatorSslException.class, () -> SSLUtils.createTrustManager("nonexistent.jks", "password"));
+                FederatorSslException.class,
+                () -> SSLUtils.createTrustManager("nonexistent-truststore.p12", "password"));
         assertTrue(e.getMessage().contains("Trust store file not found"));
     }
 
@@ -129,63 +133,67 @@ class SSLUtilsTest {
     }
 
     /**
-     * Positive test: Verifies createTrustManager(InputStream, String) returns non-empty TrustManager array for a valid in-memory JKS truststore.
+     * Positive test: Verifies createTrustManager(InputStream, String) returns non-empty TrustManager array for a valid
+     * in-memory PKCS12 truststore, and still accepts a legacy JKS truststore.
      */
-    @Test
-    void testCreateTrustManager_InputStream_Positive() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"PKCS12", "JKS"})
+    void testCreateTrustManager_InputStream_Positive(String type) throws Exception {
         String password = "testpass";
-        try (ByteArrayInputStream jks = createMockJksTruststore(password)) {
-            TrustManager[] tms = SSLUtils.createTrustManager(jks, password);
+        try (ByteArrayInputStream truststore = createMockTruststore(type, password)) {
+            TrustManager[] tms = SSLUtils.createTrustManager(truststore, password);
             assertNotNull(tms);
             assertTrue(tms.length > 0);
         }
     }
 
     /**
-     * Test createSSLContext with valid files.
+     * Test createSSLContext with valid files: a PKCS12 truststore, and a legacy JKS truststore.
      */
-    @Test
-    void testCreateSSLContext_Positive() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"PKCS12", "JKS"})
+    void testCreateSSLContext_Positive(String type) throws Exception {
         String password = "testpass";
         java.io.File p12File = java.io.File.createTempFile("test", ".p12");
-        java.io.File jksFile = java.io.File.createTempFile("test", ".jks");
+        java.io.File truststoreFile = java.io.File.createTempFile("test", type.equals("JKS") ? ".jks" : ".p12");
         try {
             try (ByteArrayInputStream p12Stream = createMockP12Keystore(password);
                     java.io.FileOutputStream fos = new java.io.FileOutputStream(p12File)) {
                 p12Stream.transferTo(fos);
             }
-            try (ByteArrayInputStream jksStream = createMockJksTruststore(password);
-                    java.io.FileOutputStream fos = new java.io.FileOutputStream(jksFile)) {
-                jksStream.transferTo(fos);
+            try (ByteArrayInputStream truststoreStream = createMockTruststore(type, password);
+                    java.io.FileOutputStream fos = new java.io.FileOutputStream(truststoreFile)) {
+                truststoreStream.transferTo(fos);
             }
 
             SSLContext context = SSLUtils.createSSLContext(
                     p12File.getAbsolutePath(), password,
-                    jksFile.getAbsolutePath(), password);
+                    truststoreFile.getAbsolutePath(), password);
             assertNotNull(context);
         } finally {
             p12File.delete();
-            jksFile.delete();
+            truststoreFile.delete();
         }
     }
 
     /**
-     * Test createSSLContextWithTrustStore with valid files.
+     * Test createSSLContextWithTrustStore with valid files: a PKCS12 truststore, and a legacy JKS truststore.
      */
-    @Test
-    void testCreateSSLContextWithTrustStore_Positive() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"PKCS12", "JKS"})
+    void testCreateSSLContextWithTrustStore_Positive(String type) throws Exception {
         String password = "testpass";
-        java.io.File jksFile = java.io.File.createTempFile("test", ".jks");
+        java.io.File truststoreFile = java.io.File.createTempFile("test", type.equals("JKS") ? ".jks" : ".p12");
         try {
-            try (ByteArrayInputStream jksStream = createMockJksTruststore(password);
-                    java.io.FileOutputStream fos = new java.io.FileOutputStream(jksFile)) {
-                jksStream.transferTo(fos);
+            try (ByteArrayInputStream truststoreStream = createMockTruststore(type, password);
+                    java.io.FileOutputStream fos = new java.io.FileOutputStream(truststoreFile)) {
+                truststoreStream.transferTo(fos);
             }
 
-            SSLContext context = SSLUtils.createSSLContextWithTrustStore(jksFile.getAbsolutePath(), password);
+            SSLContext context = SSLUtils.createSSLContextWithTrustStore(truststoreFile.getAbsolutePath(), password);
             assertNotNull(context);
         } finally {
-            jksFile.delete();
+            truststoreFile.delete();
         }
     }
 
@@ -196,7 +204,7 @@ class SSLUtilsTest {
     void testCreateSSLContext_FileNotFound_ThrowsFederatorSslException() {
         assertThrows(
                 FederatorSslException.class,
-                () -> SSLUtils.createSSLContext("nonexistent.p12", "pass", "nonexistent.jks", "pass"));
+                () -> SSLUtils.createSSLContext("nonexistent.p12", "pass", "nonexistent-truststore.p12", "pass"));
     }
 
     /**
@@ -205,7 +213,8 @@ class SSLUtilsTest {
     @Test
     void testCreateSSLContextWithTrustStore_FileNotFound_ThrowsFederatorSslException() {
         assertThrows(
-                FederatorSslException.class, () -> SSLUtils.createSSLContextWithTrustStore("nonexistent.jks", "pass"));
+                FederatorSslException.class,
+                () -> SSLUtils.createSSLContextWithTrustStore("nonexistent-truststore.p12", "pass"));
     }
 
     /**
@@ -229,22 +238,23 @@ class SSLUtilsTest {
     }
 
     /**
-     * Test createTrustManager with file path.
+     * Test createTrustManager with file path: a PKCS12 truststore, and a legacy JKS truststore.
      */
-    @Test
-    void testCreateTrustManager_FilePath_Positive() throws Exception {
+    @ParameterizedTest
+    @ValueSource(strings = {"PKCS12", "JKS"})
+    void testCreateTrustManager_FilePath_Positive(String type) throws Exception {
         String password = "testpass";
-        java.io.File jksFile = java.io.File.createTempFile("test", ".jks");
+        java.io.File truststoreFile = java.io.File.createTempFile("test", type.equals("JKS") ? ".jks" : ".p12");
         try {
-            try (ByteArrayInputStream jksStream = createMockJksTruststore(password);
-                    java.io.FileOutputStream fos = new java.io.FileOutputStream(jksFile)) {
-                jksStream.transferTo(fos);
+            try (ByteArrayInputStream truststoreStream = createMockTruststore(type, password);
+                    java.io.FileOutputStream fos = new java.io.FileOutputStream(truststoreFile)) {
+                truststoreStream.transferTo(fos);
             }
-            TrustManager[] tms = SSLUtils.createTrustManager(jksFile.getAbsolutePath(), password);
+            TrustManager[] tms = SSLUtils.createTrustManager(truststoreFile.getAbsolutePath(), password);
             assertNotNull(tms);
             assertTrue(tms.length > 0);
         } finally {
-            jksFile.delete();
+            truststoreFile.delete();
         }
     }
 
