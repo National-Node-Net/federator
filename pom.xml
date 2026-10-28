@@ -64,7 +64,7 @@
     <dependency.lz4-java>1.11.4</dependency.lz4-java>
     <dependency.junit-jupiter>6.1.3</dependency.junit-jupiter>
     <dependency.logback>1.5.38</dependency.logback>
-    <dependency.mockito>5.23.0</dependency.mockito>
+    <dependency.mockito>5.24.0</dependency.mockito>
     <dependency.lombok>1.18.48</dependency.lombok>
     <dependency.nimbusds>10.4.2</dependency.nimbusds>
     <dependency.protobuf-protoc>3.25.5</dependency.protobuf-protoc>
