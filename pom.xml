@@ -42,7 +42,7 @@
     <javadoc.failOnWarnings>true</javadoc.failOnWarnings>
     <plugin.build-helper-maven>3.6.0</plugin.build-helper-maven>
     <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
-    <plugin.exec-maven>3.6.3</plugin.exec-maven>
+    <plugin.exec-maven>3.6.4</plugin.exec-maven>
     <plugin.jacoco-maven>0.8.13</plugin.jacoco-maven>
     <plugin.javadoc>3.12.0</plugin.javadoc>
     <plugin.maven-compiler>3.14.0</plugin.maven-compiler>
@@ -59,8 +59,8 @@
     <dependency.annotation>1.3.2</dependency.annotation>
     <dependency.awaitility>4.3.0</dependency.awaitility>
     <dependency.io-grpc>1.79.0</dependency.io-grpc>
-    <dependency.bouncycastle>1.81</dependency.bouncycastle>
-    <dependency.jackson>2.18.11</dependency.jackson>
+    <dependency.bouncycastle>1.85</dependency.bouncycastle>
+    <dependency.jackson>2.22.4</dependency.jackson>
     <dependency.lz4-java>1.11.4</dependency.lz4-java>
     <dependency.junit-jupiter>6.1.3</dependency.junit-jupiter>
     <dependency.logback>1.5.38</dependency.logback>
@@ -70,11 +70,11 @@
     <dependency.protobuf-protoc>3.25.5</dependency.protobuf-protoc>
     <dependency.protoc-gen-grpc>1.68.0</dependency.protoc-gen-grpc>
     <dependency.redis-jedis>5.2.0</dependency.redis-jedis>
-    <dependency.slf4j>2.0.17</dependency.slf4j>
+    <dependency.slf4j>2.0.20</dependency.slf4j>
     <dependency.testcontainers>2.0.5</dependency.testcontainers>
     <dependency.testcontainers.redis>2.2.4</dependency.testcontainers.redis>
     <jobrunr.version>8.8.2</jobrunr.version>
-    <dependency.awssdk-bom>2.55.1</dependency.awssdk-bom>
+    <dependency.awssdk-bom>2.55.5</dependency.awssdk-bom>
     <dependency.protobuf-bom>4.36.2</dependency.protobuf-bom>
     <dependency.azure-sdk-bom>1.3.2</dependency.azure-sdk-bom>
     <dependency.aws-msk-iam-auth>2.3.5</dependency.aws-msk-iam-auth>
@@ -93,8 +93,8 @@
     <dependency.msal4j>1.23.1</dependency.msal4j>
     <dependency.animal-sniffer-annotations>1.28</dependency.animal-sniffer-annotations>
     <dependency.j2objc-annotations>3.1</dependency.j2objc-annotations>
-    <dependency.opentelemetry>1.51.0</dependency.opentelemetry>
-    <dependency.kafka-client>4.2.0</dependency.kafka-client>
+    <dependency.opentelemetry>1.62.0</dependency.opentelemetry>
+    <dependency.kafka-client>4.3.1</dependency.kafka-client>
 
   </properties>
   <dependencyManagement>
