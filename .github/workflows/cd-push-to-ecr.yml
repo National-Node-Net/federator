@@ -19,6 +19,16 @@ on:
         description: Image version tag
         required: true
         type: string
+      # Unlike duplicated component workflows, these inputs let this workflow
+      # build either Federator image while keeping the ECR push logic in one place.
+      jar_name:
+        description: Maven JAR artifact name without its version
+        required: true
+        type: string
+      dockerfile:
+        description: Dockerfile used to build the image
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       aws_account_number:
@@ -31,6 +41,16 @@ on:
         type: string
       version:
         description: Image version tag
+        required: true
+        type: string
+      # Keep manual runs consistent with reusable calls: select the component's
+      # JAR and Dockerfile rather than maintaining a duplicate workflow.
+      jar_name:
+        description: Maven JAR artifact name without its version
+        required: true
+        type: string
+      dockerfile:
+        description: Dockerfile used to build the image
         required: true
         type: string
 
@@ -64,7 +84,7 @@ jobs:
         id: get-version
         run: echo "project_version=$(./mvnw $MAVEN_CLI_OPTS help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_OUTPUT"
 
-      # Build the server JAR required by Dockerfile.server.
+      # Build the application JAR required by the selected Dockerfile.
       - name: Build application JARs
         env:
           GH_PACKAGES_PAT: ${{ secrets.GH_PACKAGES_PAT }}
@@ -78,10 +98,10 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           docker build --no-cache \
-            --build-arg JAR_NAME="federator-server-${{ steps.get-version.outputs.project_version }}" \
+            --build-arg JAR_NAME="${{ inputs.jar_name }}-${{ steps.get-version.outputs.project_version }}" \
             -t "$ECR_REGISTRY/$REPO_NAME:${{ github.sha }}" \
             -t "$ECR_REGISTRY/$REPO_NAME:$VERSION" \
-            -f docker/Dockerfile.server --target federator .
+            -f "${{ inputs.dockerfile }}" --target federator .
 
       # Assume the GitHub OIDC role in the AWS account that owns the target ECR repository.
       - name: Configure AWS credentials

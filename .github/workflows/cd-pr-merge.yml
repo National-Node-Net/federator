@@ -2,7 +2,7 @@
 # © Crown Copyright 2026. This work has been developed by the National Digital Twin Programme
 # and is legally attributed to the UK's Department for Business, Innovation, Science and Trade (BIST) as the governing entity.
 
-name: Development client image on merge
+name: Development images on merge
 
 on:
   push:
@@ -41,6 +41,7 @@ jobs:
           cache: maven
 
       # Generate a unique, timestamped development image tag.
+      # Becasue we have multiple images in this repo we only want to do this once otherwise (we would generate different timestamps for each image)
       - id: version
         name: Generate development image version from pom
         run: |
@@ -50,20 +51,42 @@ jobs:
           echo "Image version: $IMAGE_VERSION"
           echo "value=$IMAGE_VERSION" >> "$GITHUB_OUTPUT"
 
-  ci:
+  client-ci:
     needs: versioning
     # Run checks before building an image that can be deployed.
     uses: ./.github/workflows/client-ci-pr.yml
     secrets: inherit
 
-  push-to-ecr:
-    needs: [versioning, ci]
+  server-ci:
+    needs: versioning
+    # Run checks before building an image that can be deployed.
+    uses: ./.github/workflows/server-ci-pr.yml
+    secrets: inherit
+
+  client-push-to-ecr:
+    needs: [versioning, client-ci]
     permissions:
       contents: read
       id-token: write
     # Publish the checked and scanned image to the development ECR account.
-    uses: ./.github/workflows/client-cd-push-to-ecr.yml
+    uses: ./.github/workflows/cd-push-to-ecr.yml
     with:
       aws_account_number: ${{ vars.DEV_AWS_ACCOUNT_ID }}
-      repo_name: ndtp/ia-federator-client
       version: ${{ needs.versioning.outputs.version }}
+      repo_name: ndtp/ia-federator-client
+      jar_name: federator-client # extra params that differentiate the client image from the normal duplicate workflow pattern
+      dockerfile: docker/Dockerfile.client # extra params that differentiate the client image from the normal duplicate workflow pattern
+
+  server-push-to-ecr:
+    needs: [versioning, server-ci]
+    permissions:
+      contents: read
+      id-token: write
+    # Publish the checked and scanned image to the development ECR account.
+    uses: ./.github/workflows/cd-push-to-ecr.yml
+    with:
+      aws_account_number: ${{ vars.DEV_AWS_ACCOUNT_ID }}
+      version: ${{ needs.versioning.outputs.version }}
+      repo_name: ndtp/ia-federator-server
+      jar_name: federator-server # extra params that differentiate the server image from the normal duplicate workflow pattern
+      dockerfile: docker/Dockerfile.server # extra params that differentiate the server image from the normal duplicate workflow pattern

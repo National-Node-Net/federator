@@ -67,11 +67,13 @@ jobs:
       contents: read
       id-token: write
     # Build and publish the checked client image to the staging ECR account.
-    uses: ./.github/workflows/client-cd-push-to-ecr.yml
+    uses: ./.github/workflows/cd-push-to-ecr.yml
     with:
       aws_account_number: ${{ vars.STAGING_AWS_ACCOUNT_ID }}
       repo_name: ndtp/ia-federator-client
       version: ${{ needs.versioning.outputs.version }}
+      jar_name: federator-client
+      dockerfile: docker/Dockerfile.client
 
   push-server-to-staging-ecr:
     needs: [versioning, server-ci]
@@ -79,8 +81,10 @@ jobs:
       contents: read
       id-token: write
     # Build and publish the checked server image to the staging ECR account.
-    uses: ./.github/workflows/server-cd-push-to-ecr.yml
+    uses: ./.github/workflows/cd-push-to-ecr.yml
     with:
       aws_account_number: ${{ vars.STAGING_AWS_ACCOUNT_ID }}
       repo_name: ndtp/ia-federator-server
       version: ${{ needs.versioning.outputs.version }}
+      jar_name: federator-server
+      dockerfile: docker/Dockerfile.server
