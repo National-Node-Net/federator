@@ -51,7 +51,8 @@ jobs:
 
   ci:
     needs: versioning
-    # Run checks before publishing the staging images.
+    # Run checks before publishing the staging images. The matrix validates both
+    # images; if either fails, neither ECR push runs to keep them in sync.
     uses: ./.github/workflows/ci-pr.yml
     secrets: inherit
 

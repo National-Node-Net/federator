@@ -53,7 +53,8 @@ jobs:
 
   ci:
     needs: versioning
-    # Run checks before building images that can be deployed.
+    # Run checks before building images that can be deployed. The matrix validates
+    # both images; if either fails, neither ECR push runs to keep them in sync.
     uses: ./.github/workflows/ci-pr.yml
     secrets: inherit
 
