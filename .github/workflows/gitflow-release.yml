@@ -2,7 +2,7 @@
 # © Crown Copyright 2026. This work has been developed by the National Digital Twin Programme
 # and is legally attributed to the UK's Department for Business, Innovation, Science and Trade (BIST) as the governing entity.
 
-name: Release on new release branch
+name: Release images on new release branch
 
 on:
   push:
@@ -49,20 +49,38 @@ jobs:
           echo "POM version: $POM_VERSION"
           test "$POM_VERSION" = "${{ steps.branch_version.outputs.version }}"
 
-  ci:
+  client-ci:
     needs: versioning
-    # Run CI checks before publishing a staging image.
-    uses: ./.github/workflows/ci-pr.yml
+    # Run client checks before publishing its staging image.
+    uses: ./.github/workflows/client-ci-pr.yml
     secrets: inherit
 
-  push-to-staging-ecr:
-    needs: [versioning, ci]
+  server-ci:
+    needs: versioning
+    # Run server checks before publishing its staging image.
+    uses: ./.github/workflows/server-ci-pr.yml
+    secrets: inherit
+
+  push-client-to-staging-ecr:
+    needs: [versioning, client-ci]
     permissions:
       contents: read
       id-token: write
-    # Build and publish the checked release image to the staging ECR account.
-    uses: ./.github/workflows/cd-push-to-ecr.yml
+    # Build and publish the checked client image to the staging ECR account.
+    uses: ./.github/workflows/client-cd-push-to-ecr.yml
     with:
       aws_account_number: ${{ vars.STAGING_AWS_ACCOUNT_ID }}
-      repo_name: ndtp/management-node
+      repo_name: ndtp/ia-federator-client
+      version: ${{ needs.versioning.outputs.version }}
+
+  push-server-to-staging-ecr:
+    needs: [versioning, server-ci]
+    permissions:
+      contents: read
+      id-token: write
+    # Build and publish the checked server image to the staging ECR account.
+    uses: ./.github/workflows/server-cd-push-to-ecr.yml
+    with:
+      aws_account_number: ${{ vars.STAGING_AWS_ACCOUNT_ID }}
+      repo_name: ndtp/ia-federator-server
       version: ${{ needs.versioning.outputs.version }}
