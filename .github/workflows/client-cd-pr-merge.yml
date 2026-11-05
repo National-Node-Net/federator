@@ -2,7 +2,7 @@
 # © Crown Copyright 2026. This work has been developed by the National Digital Twin Programme
 # and is legally attributed to the UK's Department for Business, Innovation, Science and Trade (BIST) as the governing entity.
 
-name: Development image on merge
+name: Development client image on merge
 
 on:
   push:
@@ -53,7 +53,7 @@ jobs:
   ci:
     needs: versioning
     # Run checks before building an image that can be deployed.
-    uses: ./.github/workflows/ci-pr.yml
+    uses: ./.github/workflows/client-ci-pr.yml
     secrets: inherit
 
   push-to-ecr:
@@ -62,8 +62,8 @@ jobs:
       contents: read
       id-token: write
     # Publish the checked and scanned image to the development ECR account.
-    uses: ./.github/workflows/cd-push-to-ecr.yml
+    uses: ./.github/workflows/client-cd-push-to-ecr.yml
     with:
       aws_account_number: ${{ vars.DEV_AWS_ACCOUNT_ID }}
-      repo_name: ndtp/management-node
+      repo_name: ndtp/ia-federator-client
       version: ${{ needs.versioning.outputs.version }}
