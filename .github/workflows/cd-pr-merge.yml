@@ -51,20 +51,14 @@ jobs:
           echo "Image version: $IMAGE_VERSION"
           echo "value=$IMAGE_VERSION" >> "$GITHUB_OUTPUT"
 
-  client-ci:
+  ci:
     needs: versioning
-    # Run checks before building an image that can be deployed.
-    uses: ./.github/workflows/client-ci-pr.yml
-    secrets: inherit
-
-  server-ci:
-    needs: versioning
-    # Run checks before building an image that can be deployed.
-    uses: ./.github/workflows/server-ci-pr.yml
+    # Run checks before building images that can be deployed.
+    uses: ./.github/workflows/ci-pr.yml
     secrets: inherit
 
   client-push-to-ecr:
-    needs: [versioning, client-ci]
+    needs: [versioning, ci]
     permissions:
       contents: read
       id-token: write
@@ -78,7 +72,7 @@ jobs:
       dockerfile: docker/Dockerfile.client # extra params that differentiate the client image from the normal duplicate workflow pattern
 
   server-push-to-ecr:
-    needs: [versioning, server-ci]
+    needs: [versioning, ci]
     permissions:
       contents: read
       id-token: write

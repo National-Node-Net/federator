@@ -49,20 +49,14 @@ jobs:
           echo "POM version: $POM_VERSION"
           test "$POM_VERSION" = "${{ steps.branch_version.outputs.version }}"
 
-  client-ci:
+  ci:
     needs: versioning
-    # Run client checks before publishing its staging image.
-    uses: ./.github/workflows/client-ci-pr.yml
-    secrets: inherit
-
-  server-ci:
-    needs: versioning
-    # Run server checks before publishing its staging image.
-    uses: ./.github/workflows/server-ci-pr.yml
+    # Run checks before publishing the staging images.
+    uses: ./.github/workflows/ci-pr.yml
     secrets: inherit
 
   push-client-to-staging-ecr:
-    needs: [versioning, client-ci]
+    needs: [versioning, ci]
     permissions:
       contents: read
       id-token: write
@@ -76,7 +70,7 @@ jobs:
       dockerfile: docker/Dockerfile.client
 
   push-server-to-staging-ecr:
-    needs: [versioning, server-ci]
+    needs: [versioning, ci]
     permissions:
       contents: read
       id-token: write
