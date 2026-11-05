@@ -101,6 +101,7 @@ jobs:
           java-version: "21"
           distribution: temurin
           cache: maven
+          server-password: GH_PACKAGES_PAT
 
       # Read the Maven version used in the JAR filename.
       - name: Get project version
