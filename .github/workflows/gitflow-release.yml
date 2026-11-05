@@ -55,30 +55,20 @@ jobs:
     uses: ./.github/workflows/ci-pr.yml
     secrets: inherit
 
-  push-client-to-staging-ecr:
+  push-to-staging-ecr:
     needs: [versioning, ci]
     permissions:
       contents: read
       id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [client, server]
     # Build and publish the checked client image to the staging ECR account.
     uses: ./.github/workflows/cd-push-to-ecr.yml
     with:
       aws_account_number: ${{ vars.STAGING_AWS_ACCOUNT_ID }}
-      repo_name: ndtp/ia-federator-client
+      repo_name: ndtp/ia-federator-${{ matrix.component }}
       version: ${{ needs.versioning.outputs.version }}
-      jar_name: federator-client
-      dockerfile: docker/Dockerfile.client
-
-  push-server-to-staging-ecr:
-    needs: [versioning, ci]
-    permissions:
-      contents: read
-      id-token: write
-    # Build and publish the checked server image to the staging ECR account.
-    uses: ./.github/workflows/cd-push-to-ecr.yml
-    with:
-      aws_account_number: ${{ vars.STAGING_AWS_ACCOUNT_ID }}
-      repo_name: ndtp/ia-federator-server
-      version: ${{ needs.versioning.outputs.version }}
-      jar_name: federator-server
-      dockerfile: docker/Dockerfile.server
+      jar_name: federator-${{ matrix.component }}
+      dockerfile: docker/Dockerfile.${{ matrix.component }}
