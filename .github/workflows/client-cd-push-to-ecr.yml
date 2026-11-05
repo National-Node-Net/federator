@@ -64,6 +64,12 @@ jobs:
         id: get-version
         run: echo "project_version=$(./mvnw $MAVEN_CLI_OPTS help:evaluate -Dexpression=project.version -q -DforceStdout)" >> "$GITHUB_OUTPUT"
 
+      # Build the client JAR required by Dockerfile.client.
+      - name: Build application JARs
+        env:
+          GH_PACKAGES_PAT: ${{ secrets.GH_PACKAGES_PAT }}
+        run: ./mvnw $MAVEN_CLI_OPTS package -DskipTests
+
       # Build and tag the same image by commit SHA and by the supplied release version.
       - name: Build Docker image
         env:
@@ -72,10 +78,10 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           docker build --no-cache \
-            --build-arg JAR_NAME="management-node-${{ steps.get-version.outputs.project_version }}" \
+            --build-arg JAR_NAME="federator-client-${{ steps.get-version.outputs.project_version }}" \
             -t "$ECR_REGISTRY/$REPO_NAME:${{ github.sha }}" \
             -t "$ECR_REGISTRY/$REPO_NAME:$VERSION" \
-            -f docker/Dockerfile --target management-node .
+            -f docker/Dockerfile.client --target federator .
 
       # Assume the GitHub OIDC role in the AWS account that owns the target ECR repository.
       - name: Configure AWS credentials
