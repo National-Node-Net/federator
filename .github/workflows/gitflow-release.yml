@@ -67,6 +67,7 @@ jobs:
         component: [client, server]
     # Build and publish the checked images to the staging ECR account.
     uses: ./.github/workflows/cd-push-to-ecr.yml
+    secrets: inherit
     with:
       aws_account_number: ${{ vars.STAGING_AWS_ACCOUNT_ID }}
       repo_name: ndtp/ia-federator-${{ matrix.component }}

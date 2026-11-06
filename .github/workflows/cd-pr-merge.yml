@@ -67,6 +67,7 @@ jobs:
         component: [client, server]
     # Publish the checked and scanned images to the development ECR account.
     uses: ./.github/workflows/cd-push-to-ecr.yml
+    secrets: inherit
     with:
       aws_account_number: ${{ vars.DEV_AWS_ACCOUNT_ID }}
       version: ${{ needs.versioning.outputs.version }}
