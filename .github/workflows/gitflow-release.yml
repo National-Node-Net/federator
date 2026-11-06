@@ -65,7 +65,7 @@ jobs:
       fail-fast: false
       matrix:
         component: [client, server]
-    # Build and publish the checked client image to the staging ECR account.
+    # Build and publish the checked images to the staging ECR account.
     uses: ./.github/workflows/cd-push-to-ecr.yml
     with:
       aws_account_number: ${{ vars.STAGING_AWS_ACCOUNT_ID }}

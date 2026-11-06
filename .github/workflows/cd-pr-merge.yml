@@ -40,8 +40,7 @@ jobs:
           distribution: temurin
           cache: maven
 
-      # Generate a unique, timestamped development image tag.
-      # Becasue we have multiple images in this repo we only want to do this once otherwise (we would generate different timestamps for each image)
+      # Generate one unique, timestamped tag for both development images.
       - id: version
         name: Generate development image version from pom
         run: |
@@ -53,35 +52,24 @@ jobs:
 
   ci:
     needs: versioning
-    # Run checks before building images that can be deployed. The matrix validates
-    # both images; if either fails, neither ECR push runs to keep them in sync.
+    # Run checks before building images that can be deployed.
     uses: ./.github/workflows/ci-pr.yml
     secrets: inherit
 
-  client-push-to-ecr:
+  push-to-development-ecr:
     needs: [versioning, ci]
     permissions:
       contents: read
       id-token: write
-    # Publish the checked and scanned image to the development ECR account.
+    strategy:
+      fail-fast: false
+      matrix:
+        component: [client, server]
+    # Publish the checked and scanned images to the development ECR account.
     uses: ./.github/workflows/cd-push-to-ecr.yml
     with:
       aws_account_number: ${{ vars.DEV_AWS_ACCOUNT_ID }}
       version: ${{ needs.versioning.outputs.version }}
-      repo_name: ndtp/ia-federator-client
-      jar_name: federator-client # extra params that differentiate the client image from the normal duplicate workflow pattern
-      dockerfile: docker/Dockerfile.client # extra params that differentiate the client image from the normal duplicate workflow pattern
-
-  server-push-to-ecr:
-    needs: [versioning, ci]
-    permissions:
-      contents: read
-      id-token: write
-    # Publish the checked and scanned image to the development ECR account.
-    uses: ./.github/workflows/cd-push-to-ecr.yml
-    with:
-      aws_account_number: ${{ vars.DEV_AWS_ACCOUNT_ID }}
-      version: ${{ needs.versioning.outputs.version }}
-      repo_name: ndtp/ia-federator-server
-      jar_name: federator-server # extra params that differentiate the server image from the normal duplicate workflow pattern
-      dockerfile: docker/Dockerfile.server # extra params that differentiate the server image from the normal duplicate workflow pattern
+      repo_name: ndtp/ia-federator-${{ matrix.component }}
+      jar_name: federator-${{ matrix.component }} # Derived from the current matrix component.
+      dockerfile: docker/Dockerfile.${{ matrix.component }} # Derived from the current matrix component.
