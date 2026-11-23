@@ -53,6 +53,8 @@ public class ClientRevocationInterceptor implements ClientInterceptor {
 
     static final String SESSION_TARGET = "uk.gov.dbt.ndtp.federator.revocation.producer-target";
 
+    private static final X509Certificate[] NO_CHAIN = new X509Certificate[0];
+
     private final RevocationEngine engine;
     private final AtomicReference<ManagedChannel> channel = new AtomicReference<>();
 
@@ -157,7 +159,7 @@ public class ClientRevocationInterceptor implements ClientInterceptor {
             return cached;
         }
         X509Certificate[] chain = peerChain(session);
-        if (chain == null) {
+        if (chain.length == 0) {
             return null;
         }
         return IssuerResolver.issuerOf(chain, engine.trustedIssuers())
@@ -169,11 +171,12 @@ public class ClientRevocationInterceptor implements ClientInterceptor {
                 .orElse(null);
     }
 
+    /** The producer's X.509 chain, leaf first; empty when the session has no verified server certificate. */
     private static X509Certificate[] peerChain(SSLSession session) {
         try {
             Certificate[] certificates = session.getPeerCertificates();
-            if (certificates.length == 0 || !(certificates[0] instanceof X509Certificate)) {
-                return null;
+            if (certificates == null || certificates.length == 0 || !(certificates[0] instanceof X509Certificate)) {
+                return NO_CHAIN;
             }
             X509Certificate[] chain = new X509Certificate[certificates.length];
             for (int i = 0; i < certificates.length; i++) {
@@ -181,7 +184,7 @@ public class ClientRevocationInterceptor implements ClientInterceptor {
             }
             return chain;
         } catch (SSLPeerUnverifiedException | ClassCastException e) {
-            return null;
+            return NO_CHAIN;
         }
     }
 }
