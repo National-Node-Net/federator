@@ -48,7 +48,7 @@ public class RevocationAudit {
     private static final Marker ALERT = MarkerFactory.getMarker(SECURITY_ALERT);
     private static final String DECISION_FORMAT =
             "event=revocation.decision component={} phase={} peer_serial={} issuer=\"{}\" status={}"
-                    + " result={} cause={} connection_id={} detail=\"{}\"";
+                    + " result={} cause={} connection_id={}{} detail=\"{}\"";
     private static final String ALERT_FORMAT = DECISION_FORMAT + " alert=" + SECURITY_ALERT;
 
     /** Where the decision was taken. */
@@ -79,8 +79,14 @@ public class RevocationAudit {
      * @param serial       lowercase hex serial of the peer certificate
      * @param issuer       issuer DN of the peer certificate
      * @param connectionId remote address and TLS session id, or {@code "-"}
+     * @param context      extra key=value pairs for the log line (e.g. {@code producer_id=... job_id=...}), or null
      */
-    public record Peer(String serial, String issuer, String connectionId) {}
+    public record Peer(String serial, String issuer, String connectionId, String context) {
+
+        public Peer(String serial, String issuer, String connectionId) {
+            this(serial, issuer, connectionId, null);
+        }
+    }
 
     private final String component;
     private final MeterRegistry registry;
@@ -145,6 +151,7 @@ public class RevocationAudit {
     /**
      * Counts connections whose calls were all terminated after a re-check. The producer cannot close one connection
      * through the public gRPC API: the connection itself closes once idle ({@code server.maxConnectionIdle.seconds}).
+     * The consumer shuts the channel to the producer down, which closes the connection at once.
      */
     public void connectionsTerminated(String cause, int connections) {
         counter(
@@ -200,6 +207,7 @@ public class RevocationAudit {
             result.tag(),
             cause,
             peer.connectionId(),
+            peer.context() == null || peer.context().isBlank() ? "" : " " + peer.context(),
             detail == null ? "-" : detail
         };
         boolean unavailable = "unavailable".equals(cause);

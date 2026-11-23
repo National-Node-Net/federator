@@ -33,11 +33,16 @@ import java.util.Properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.gov.dbt.ndtp.federator.client.connection.ConnectionProperties;
+import uk.gov.dbt.ndtp.federator.client.grpc.GRPCClient;
 import uk.gov.dbt.ndtp.federator.client.grpc.GRPCTopicClient;
+import uk.gov.dbt.ndtp.federator.client.grpc.revocation.ClientRevocation;
 import uk.gov.dbt.ndtp.federator.client.jobs.DefaultJobSchedulerProvider;
 import uk.gov.dbt.ndtp.federator.client.jobs.JobSchedulerProvider;
 import uk.gov.dbt.ndtp.federator.client.jobs.handlers.ClientDynamicConfigJob;
+import uk.gov.dbt.ndtp.federator.common.annotations.ExcludeFromJacocoGeneratedReport;
 import uk.gov.dbt.ndtp.federator.common.management.ManagementNodeDataHandler;
+import uk.gov.dbt.ndtp.federator.common.metrics.MetricsServer;
+import uk.gov.dbt.ndtp.federator.common.revocation.OcspTrustManager;
 import uk.gov.dbt.ndtp.federator.common.service.config.ConsumerConfigService;
 import uk.gov.dbt.ndtp.federator.common.service.idp.IdpTokenService;
 import uk.gov.dbt.ndtp.federator.common.storage.InMemoryConfigurationStore;
@@ -45,6 +50,7 @@ import uk.gov.dbt.ndtp.federator.common.utils.GRPCUtils;
 import uk.gov.dbt.ndtp.federator.common.utils.HttpClientFactoryUtils;
 import uk.gov.dbt.ndtp.federator.common.utils.ObjectMapperUtil;
 import uk.gov.dbt.ndtp.federator.common.utils.PropertyUtil;
+import uk.gov.dbt.ndtp.federator.common.utils.SSLUtils;
 import uk.gov.dbt.ndtp.federator.exceptions.ConfigurationException;
 
 /**
@@ -110,6 +116,14 @@ public class FederatorClient {
     public static void main(final String[] args) {
         LOGGER.info(LOG_INIT);
         initProperties();
+        try {
+            installRevocationChecks();
+        } catch (RuntimeException e) {
+            LOGGER.error("Invalid revocation configuration, the client cannot start: {}", e.getMessage(), e);
+            System.exit(EXIT_ERROR);
+            return;
+        }
+        MetricsServer.startIfEnabled();
         ConsumerConfigService service = createConfigService();
         ClientDynamicConfigJob.initialize(service);
         JobSchedulerProvider scheduler = new DefaultJobSchedulerProvider();
@@ -164,6 +178,22 @@ public class FederatorClient {
      *
      * @return HTTP client
      */
+    /**
+     * Sets up the revocation checks of producer certificates (see {@link ClientRevocation}). An invalid setting fails
+     * startup.
+     */
+    @ExcludeFromJacocoGeneratedReport
+    private static void installRevocationChecks() {
+        ClientRevocation.install(
+                () -> OcspTrustManager.pkixDelegate(SSLUtils.createTrustManager(
+                        PropertyUtil.getPropertyValue(GRPCClient.CLIENT_TRUSTSTORE_FILE_PATH),
+                        PropertyUtil.getPropertyValue(GRPCClient.CLIENT_TRUSTSTORE_PASSWORD))),
+                () -> HttpClientFactoryUtils.createHttpClientWithMtls(PropertyUtil.getIdpProperties()),
+                GRPCUtils::createIdpTokenService,
+                MetricsServer.registry());
+        Runtime.getRuntime().addShutdownHook(new Thread(ClientRevocation::close, "revocation-shutdown"));
+    }
+
     private static HttpClient createHttpClient() {
         final Properties props = PropertyUtil.getIdpProperties();
         try {

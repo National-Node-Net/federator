@@ -22,6 +22,7 @@ import java.util.Objects;
 import java.util.Optional;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
+import uk.gov.dbt.ndtp.federator.common.revocation.ActiveCallRegistry;
 import uk.gov.dbt.ndtp.federator.common.revocation.CertificateKey;
 import uk.gov.dbt.ndtp.federator.common.revocation.ConnectionIds;
 import uk.gov.dbt.ndtp.federator.common.revocation.IssuerResolver;

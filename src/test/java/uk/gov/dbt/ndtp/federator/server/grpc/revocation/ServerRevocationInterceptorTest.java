@@ -36,6 +36,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import uk.gov.dbt.ndtp.federator.common.revocation.ActiveCallRegistry;
 import uk.gov.dbt.ndtp.federator.common.revocation.CertificateStatus;
 import uk.gov.dbt.ndtp.federator.common.revocation.CertificateStatusEntry;
 import uk.gov.dbt.ndtp.federator.common.revocation.OcspResponderException;

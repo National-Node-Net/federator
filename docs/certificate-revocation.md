@@ -1,13 +1,15 @@
-# Certificate Revocation (Producer)
+# Certificate Revocation
 
 **Repository:** `federator`  
-**Description:** `OCSP revocation checks of consumer client certificates on the producer`
+**Description:** `OCSP revocation checks of peer certificates on the producer and the consumer`
 
 <!-- SPDX-License-Identifier: OGL-UK-3.0 -->
 
 ---
 
 ## Overview
+
+Both sides of a federation connection check the other side's certificate against the Management Node OCSP API: the producer checks consumer client certificates (described first), and the consumer checks producer server certificates (see [Consumer](#consumer)). Both use the same `revocation.*` settings, cache, OCSP client and response verification.
 
 With mTLS enabled, the producer (Federator server) checks that a consumer's client certificate has not been revoked:
 
@@ -81,6 +83,34 @@ The OCSP query in the handshake blocks. The server uses the JDK SSL provider, so
 
 Fail-closed has a cost: if the Management Node or Vault is unavailable for longer than the cache TTL, consumers are disconnected and cannot reconnect until the OCSP API is back. Every such decision is logged at ERROR with the `SECURITY_ALERT` marker and ends with `alert=SECURITY_ALERT`, so it can be alerted on with any log pattern. In an emergency, `revocation.enforcement.enabled=false` (restart required) turns the checks off.
 
+## Consumer
+
+The consumer (Federator client) checks the producer's server certificate for every producer it connects to with TLS (`tls=true` in the Management Node configuration):
+
+1. **TLS handshake.** After the chain validates against `client.truststoreFilePath`, the producer's certificate is checked. A revoked or unknown certificate fails the handshake before any request is sent. The consumer builds a new channel for every job run, so every run starts with this check (normally answered from the cache).
+2. **Each call.** When the producer's response headers arrive, before any message of the call is processed, the certificate is checked again from the cache and the call is registered for re-checks.
+3. **During communication.** When the cache entry of a producer with open calls expires, the status is checked again. If the certificate is revoked or unknown (or no status is available while failing closed), every call to that producer is cancelled and its channel shut down. Other producers are not affected.
+
+Data from a rejected producer is not processed: the call's guard is marked before the call is cancelled, and the stream loops check it before every write to Kafka or file storage and before saving an offset, so a message that was already received is discarded.
+
+| Status | Handshake | Call | Open calls at re-check |
+|---|---|---|---|
+| `good` | accepted | proceeds | continue |
+| `revoked` / `unknown` | fails | cancelled | all cancelled, channel shut down |
+| No valid status and no valid cache entry | fails | cancelled | all cancelled, channel shut down (fail closed) |
+
+**Jobs.** A job that fails because the producer's certificate is revoked or unknown is marked failed with `PRODUCER_CERTIFICATE_REVOKED` and is **not retried** by JobRunr. The next scheduled run is rejected in the handshake from the cached status, without asking the Management Node again, so there is no retry storm. A job whose own certificate is rejected by the producer (the producer closes the call with `UNAUTHENTICATED: Peer certificate revoked|unknown`) fails with `CONSUMER_CERTIFICATE_REJECTED`, also without retry. When the status is only unavailable, the normal retry policy applies, because the responder may come back. Each of these is logged as `event=revocation.job reason=... producer_id=... topic=... job_id=... retry=false`.
+
+**Enablement.**
+
+| `client.tlsEnabled` | `revocation.enforcement.enabled` | Revocation checks |
+|---|---|---|
+| `true` (default) | `true` (default) | applied to every producer connection with `tls=true`; a WARN for each producer configured without TLS |
+| `true` | `false` | not applied, WARN at startup |
+| `false` | any | not applied (mTLS off), WARN at startup |
+
+The consumer uses its Management Node identity (`idp.keystore.*`, the `idp.*` properties of `client.properties`) and a bearer token with the `check_certificate_status` role for OCSP, like the producer. Status entries are cached under `${redis.prefix}:cert-status:` (by default `federator-client:cert-status:`) when `revocation.cache.type=redis`. `client.tlsSessionTimeout.seconds` (default 300) limits TLS session resumption. Metrics are served on `metrics.port`, `9465` by default for the consumer so it does not clash with a producer on the same host.
+
 ## Logging and metrics
 
 Every decision is logged by the `RevocationAudit` logger as key=value:
@@ -89,7 +119,7 @@ Every decision is logged by the `RevocationAudit` logger as key=value:
 event=revocation.decision component=producer phase=recheck peer_serial=4a1f issuer="O=Org,CN=Federation CA" status=revoked result=close cause=revoked connection_id=/10.0.0.5:51234/1a2b3c4d detail="2 call(s) closed; ocsp"
 ```
 
-`phase` is `handshake`, `call` or `recheck`; `result` is `allow`, `reject` or `close`. `connection_id` is `<remote address>/<first 8 bytes of the TLS session id>`. The gRPC server does not know the remote address during the TLS handshake, so handshake lines show `-/<session id>`; the call and re-check lines of the same connection end with the same session id.
+`component` is `producer` or `consumer`; on the consumer, call and re-check lines also carry `producer_id=... topic=... job_id=...`. `phase` is `handshake`, `call` or `recheck`; `result` is `allow`, `reject` or `close`. `connection_id` is `<remote address>/<first 8 bytes of the TLS session id>`. The gRPC server does not know the remote address during the TLS handshake, so handshake lines show `-/<session id>`; the call and re-check lines of the same connection end with the same session id.
 
 Metrics are served in Prometheus format at `GET http://<host>:${metrics.port}/metrics` (`metrics.enabled=true`, port `9464` by default):
 
@@ -103,10 +133,13 @@ Metrics are served in Prometheus format at `GET http://<host>:${metrics.port}/me
 | `federator_revocation_cache_lookups_total` | `role`, `cache`, `result` (hit rate) |
 | `cache_*{cache="federator.revocation.status"}` | in-memory cache statistics |
 | `resilience4j_circuitbreaker_state{name="ocsp-responder"}` | circuit breaker state |
+| `federator_revocation_jobs_failed_total` | `reason` (consumer jobs not retried) |
+
+The `role` tag is `producer` or `consumer`.
 
 ## Configuration reference
 
-See the `Revocation` sections of `src/configs/server.properties`. Keys:
+See the `Revocation` sections of `src/configs/server.properties` and `src/configs/client.properties`. The `revocation.*` keys are the same on both sides; the consumer adds `client.tlsEnabled` (default `true`) and `client.tlsSessionTimeout.seconds` (default `300`), and uses `metrics.port=9465`. Keys:
 
 | Property | Default | Description |
 |---|---|---|

@@ -17,7 +17,14 @@
   their connections closed once idle.
   Configurable cache (`memory` or `redis`, TTL at most 600 s), fail-closed by default, own resilience
   settings (`revocation.ocsp.resilience.*`). See `docs/certificate-revocation.md`.
-- Prometheus metrics endpoint (`metrics.enabled`, `metrics.port`, default `9464`).
+- Consumer: OCSP revocation checks of producer server certificates in the TLS handshake, on every gRPC call and
+  when the cached status of a producer with open calls expires. Calls to a revoked or unknown producer are
+  cancelled and the channel shut down; data received after the rejection is not written to Kafka or file storage.
+  Such jobs fail with `PRODUCER_CERTIFICATE_REVOKED` (or `CONSUMER_CERTIFICATE_REJECTED` when the producer rejects
+  the consumer's own certificate) and are not retried. New keys `client.tlsEnabled` and
+  `client.tlsSessionTimeout.seconds`.
+- Prometheus metrics endpoint (`metrics.enabled`, `metrics.port`, default `9464` on the server and `9465` on the
+  client).
 - `server.maxConnectionAge.seconds`, `server.maxConnectionAgeGrace.seconds`, `server.maxConnectionIdle.seconds`
   and `server.tlsSessionTimeout.seconds`; with revocation checks active, `maxConnectionAge` defaults to 1800 s
   and `maxConnectionIdle` to 60 s.

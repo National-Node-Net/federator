@@ -4,9 +4,8 @@
  * attributed to the UK's Department for Business, Innovation, Science and Trade (BIST) as the governing entity.
  */
 
-package uk.gov.dbt.ndtp.federator.server.grpc.revocation;
+package uk.gov.dbt.ndtp.federator.common.revocation;
 
-import io.grpc.Status;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
@@ -20,36 +19,28 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import lombok.extern.slf4j.Slf4j;
-import uk.gov.dbt.ndtp.federator.common.revocation.CertificateKey;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationAudit;
 import uk.gov.dbt.ndtp.federator.common.revocation.RevocationAudit.Peer;
 import uk.gov.dbt.ndtp.federator.common.revocation.RevocationAudit.Phase;
 import uk.gov.dbt.ndtp.federator.common.revocation.RevocationAudit.Result;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationChecker;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationDecision;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationTarget;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationVerdict;
 
 /**
- * Open calls per consumer certificate, re-checked when the certificate's cache entry expires.
+ * Open calls per peer certificate, re-checked when the certificate's cache entry expires. Used on both sides: the
+ * producer tracks consumer certificates, the consumer tracks producer certificates.
  * <p>
  * The first call registered for a certificate schedules a re-check at the expiry of the status entry it was admitted
  * with. The re-check asks the OCSP responder again: {@code GOOD} schedules the next re-check at the new expiry;
- * {@code REVOKED} or {@code UNKNOWN} closes every open call of that certificate with {@code UNAUTHENTICATED}; no
- * available status closes them with {@code UNAVAILABLE} when failing closed, otherwise the re-check is retried after
- * {@link #FAIL_OPEN_RETRY}. Calls of other certificates are not affected. When the last call of a certificate ends,
- * its re-check is cancelled.
+ * {@code REVOKED} or {@code UNKNOWN} terminates every open call of that certificate; no available status terminates
+ * them when failing closed, otherwise the re-check is retried after {@link #FAIL_OPEN_RETRY}. Calls of other
+ * certificates are not affected. When the last call of a certificate ends, its re-check is cancelled.
  */
-@Slf4j
 public class ActiveCallRegistry implements AutoCloseable {
 
     /** Delay before re-checking again after a responder failure when failing open. */
-    static final Duration FAIL_OPEN_RETRY = Duration.ofSeconds(30);
+    public static final Duration FAIL_OPEN_RETRY = Duration.ofSeconds(30);
 
     private static final class Tracked {
         private final RevocationTarget peer;
-        private final Set<RevocableServerCall<?, ?>> calls = ConcurrentHashMap.newKeySet();
+        private final Set<TerminableCall> calls = ConcurrentHashMap.newKeySet();
         private ScheduledFuture<?> recheck;
         private boolean removed;
 
@@ -89,7 +80,7 @@ public class ActiveCallRegistry implements AutoCloseable {
         this(checker, audit, failClosed, newScheduler());
     }
 
-    ActiveCallRegistry(
+    public ActiveCallRegistry(
             RevocationChecker checker, RevocationAudit audit, boolean failClosed, ScheduledExecutorService scheduler) {
         this.checker = Objects.requireNonNull(checker, "checker");
         this.audit = Objects.requireNonNull(audit, "audit");
@@ -107,13 +98,13 @@ public class ActiveCallRegistry implements AutoCloseable {
     }
 
     /**
-     * Registers an open call. It is unregistered automatically when it closes.
+     * Registers an open call. It is unregistered automatically when it ends.
      *
-     * @param peer      the consumer certificate
+     * @param peer      the peer certificate
      * @param call      the call
      * @param recheckAt when the certificate must be checked again (expiry of its status entry)
      */
-    public void register(RevocationTarget peer, RevocableServerCall<?, ?> call, Instant recheckAt) {
+    public void register(RevocationTarget peer, TerminableCall call, Instant recheckAt) {
         CertificateKey key = peer.key();
         call.onClosed(() -> unregister(key, call));
         Tracked entry = tracked.compute(key, (k, existing) -> {
@@ -129,7 +120,7 @@ public class ActiveCallRegistry implements AutoCloseable {
     /**
      * Removes a call; cancels the re-check when it was the certificate's last call.
      */
-    public void unregister(CertificateKey key, RevocableServerCall<?, ?> call) {
+    public void unregister(CertificateKey key, TerminableCall call) {
         tracked.computeIfPresent(key, (k, entry) -> {
             entry.calls.remove(call);
             if (entry.calls.isEmpty()) {
@@ -169,8 +160,7 @@ public class ActiveCallRegistry implements AutoCloseable {
         }
         if (verdict.allowed()) {
             // no status, failing open
-            audit.verdict(
-                    Phase.RECHECK, peerOf(entry.peer, connections(entry)), verdict, Result.CLOSE, decision.detail());
+            audit.verdict(Phase.RECHECK, peerOf(entry), verdict, Result.CLOSE, decision.detail());
             reschedule(key, checker.clock().instant().plus(FAIL_OPEN_RETRY));
             return;
         }
@@ -190,31 +180,28 @@ public class ActiveCallRegistry implements AutoCloseable {
             return;
         }
         entry.remove();
-        Status grpcStatus = verdict.rejection();
-        List<RevocableServerCall<?, ?>> calls = List.copyOf(entry.calls);
+        Peer peer = peerOf(entry);
+        List<TerminableCall> calls = List.copyOf(entry.calls);
         Set<String> connections =
-                calls.stream().map(RevocableServerCall::connectionId).collect(Collectors.toSet());
-        for (RevocableServerCall<?, ?> call : calls) {
-            call.terminate(grpcStatus);
+                calls.stream().map(TerminableCall::connectionId).collect(Collectors.toSet());
+        for (TerminableCall call : calls) {
+            call.terminate(verdict);
         }
-        audit.verdict(
-                Phase.RECHECK,
-                peerOf(entry.peer, String.join(",", connections)),
-                verdict,
-                Result.CLOSE,
-                calls.size() + " call(s) closed; " + detail);
+        audit.verdict(Phase.RECHECK, peer, verdict, Result.CLOSE, calls.size() + " call(s) closed; " + detail);
         audit.connectionsTerminated(verdict.status(), connections.size());
     }
 
-    private static String connections(Tracked entry) {
-        return entry.calls.stream()
-                .map(RevocableServerCall::connectionId)
+    private static Peer peerOf(Tracked entry) {
+        String connections = entry.calls.stream()
+                .map(TerminableCall::connectionId)
                 .distinct()
                 .collect(Collectors.joining(","));
-    }
-
-    private static Peer peerOf(RevocationTarget peer, String connectionIds) {
-        return new Peer(peer.serial(), peer.issuerName(), connectionIds);
+        String context = entry.calls.stream()
+                .map(TerminableCall::context)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse(null);
+        return new Peer(entry.peer.serial(), entry.peer.issuerName(), connections, context);
     }
 
     @Override

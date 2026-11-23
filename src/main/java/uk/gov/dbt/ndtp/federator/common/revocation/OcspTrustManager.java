@@ -112,8 +112,7 @@ public class OcspTrustManager extends X509ExtendedTrustManager {
         RevocationVerdict verdict = RevocationVerdict.of(decision, failClosed);
         audit.verdict(Phase.HANDSHAKE, peer, verdict, Result.REJECT, decision.detail());
         if (!verdict.allowed()) {
-            throw new CertificateException(
-                    "Peer certificate " + peer.serial() + " rejected: revocation status " + verdict.status());
+            throw new RevokedPeerCertificateException(peer.serial(), verdict.status());
         }
     }
 

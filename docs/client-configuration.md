@@ -38,6 +38,10 @@ This document describes the configuration properties for the Federator client, i
 | `consumer.inactivity.timeout` | duration of inactivity (ISO-8601, e.g. PT30S) before the client disconnects from the server due to inactivity |
 | `management.node.host` | the hostname of the management node for client coordination and monitoring |
 | `management.node.port` | the port of the management node for client coordination and monitoring |
+| `client.tlsEnabled` | mTLS to producers (default `true`); `false` turns off the revocation checks of producer certificates with a WARN at startup. TLS itself is chosen per producer by the Management Node configuration |
+| `client.tlsSessionTimeout.seconds` | TLS session lifetime; an older session needs a full handshake (default `300`) |
+| `revocation.*` | revocation (OCSP) checks of producer certificates, cache and resilience; the same keys as on the server. See [Certificate Revocation](certificate-revocation.md#consumer) |
+| `metrics.enabled` / `metrics.port` | Prometheus endpoint `GET /metrics` (default `true` / `9465`) |
 
 ## Running the Client
 
