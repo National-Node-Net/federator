@@ -203,7 +203,7 @@ class ActiveCallRegistryTest {
     }
 
     @Test
-    void recheckRunsWhenTheCacheEntryExpires() throws Exception {
+    void recheckRunsWhenTheCacheEntryExpires() {
         ActiveCallRegistry registry = registry(true);
         RevocationTarget peer = peer("consumer-a");
         ServerCall<Object, Object> call = serverCall();

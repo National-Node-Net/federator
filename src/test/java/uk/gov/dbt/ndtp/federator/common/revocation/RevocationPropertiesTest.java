@@ -19,6 +19,8 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import uk.gov.dbt.ndtp.federator.common.revocation.support.RevocationTestSupport;
 import uk.gov.dbt.ndtp.federator.common.utils.PropertyUtil;
 import uk.gov.dbt.ndtp.federator.exceptions.ConfigurationException;
@@ -66,8 +68,8 @@ class RevocationPropertiesTest {
 
     @Test
     void ttlAboveSixHundredSecondsFailsStartup() {
-        ConfigurationException e =
-                assertThrows(ConfigurationException.class, () -> load(Map.of("revocation.cache.ttl.seconds", "601")));
+        Map<String, String> properties = Map.of("revocation.cache.ttl.seconds", "601");
+        ConfigurationException e = assertThrows(ConfigurationException.class, () -> load(properties));
         assertTrue(e.getMessage().contains("revocation.cache.ttl.seconds"));
     }
 
@@ -78,14 +80,17 @@ class RevocationPropertiesTest {
                 load(Map.of("revocation.cache.ttl.seconds", "600")).cacheTtl());
     }
 
-    @Test
-    void invalidValuesFailStartup() {
-        assertThrows(ConfigurationException.class, () -> load(Map.of("revocation.cache.ttl.seconds", "0")));
-        assertThrows(ConfigurationException.class, () -> load(Map.of("revocation.cache.ttl.seconds", "abc")));
-        assertThrows(ConfigurationException.class, () -> load(Map.of("revocation.cache.type", "disk")));
-        assertThrows(ConfigurationException.class, () -> load(Map.of("revocation.ocsp.requestTimeout", "0")));
-        assertThrows(
-                ConfigurationException.class, () -> load(Map.of("revocation.ocsp.resilience.retry.maxAttempts", "0")));
+    @ParameterizedTest
+    @CsvSource({
+        "revocation.cache.ttl.seconds, 0",
+        "revocation.cache.ttl.seconds, abc",
+        "revocation.cache.type, disk",
+        "revocation.ocsp.requestTimeout, 0",
+        "revocation.ocsp.resilience.retry.maxAttempts, 0"
+    })
+    void invalidValuesFailStartup(String key, String value) {
+        Map<String, String> properties = Map.of(key, value);
+        assertThrows(ConfigurationException.class, () -> load(properties));
     }
 
     @Test

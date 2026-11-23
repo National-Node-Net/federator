@@ -35,7 +35,7 @@ class OcspTokenProviderTest {
     }
 
     @Test
-    void hangingRequestIsAbandonedAndReplaced() throws Exception {
+    void hangingRequestIsAbandonedAndReplaced() {
         IdpTokenService service = mock(IdpTokenService.class);
         CountDownLatch never = new CountDownLatch(1);
         when(service.fetchToken(any()))
@@ -48,13 +48,14 @@ class OcspTokenProviderTest {
         try (OcspTokenProvider provider =
                 new OcspTokenProvider(service, Clock.systemUTC(), now::get, Duration.ofSeconds(35))) {
 
-            OcspResponderException first =
-                    assertThrows(OcspResponderException.class, () -> provider.token(Duration.ofMillis(100)));
+            Duration firstWait = Duration.ofMillis(100);
+            OcspResponderException first = assertThrows(OcspResponderException.class, () -> provider.token(firstWait));
             assertEquals(OcspResponderException.Type.TOKEN, first.getType());
 
             // still within the maximum age: the same hanging request is awaited again
             now.addAndGet(Duration.ofSeconds(10).toNanos());
-            assertThrows(OcspResponderException.class, () -> provider.token(Duration.ofMillis(50)));
+            Duration secondWait = Duration.ofMillis(50);
+            assertThrows(OcspResponderException.class, () -> provider.token(secondWait));
             verify(service, times(1)).fetchToken(any());
 
             // past the maximum age: abandoned, a new request is made

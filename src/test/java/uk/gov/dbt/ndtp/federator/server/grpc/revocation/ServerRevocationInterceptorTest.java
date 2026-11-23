@@ -11,6 +11,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -136,8 +137,8 @@ class ServerRevocationInterceptorTest {
         when(session.getValue(ServerRevocationInterceptor.SESSION_TARGET)).thenReturn(stored.getValue());
         interceptor(true).interceptCall(call, new Metadata(), next);
 
-        verify(session, org.mockito.Mockito.times(1)).getPeerCertificates();
-        verify(checker, org.mockito.Mockito.times(2)).check(any());
+        verify(session, times(1)).getPeerCertificates();
+        verify(checker, times(2)).check(any());
     }
 
     @Test

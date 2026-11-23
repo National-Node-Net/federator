@@ -170,18 +170,19 @@ public class GRPCServer implements AutoCloseable {
             long age = Long.parseLong(maxAge.trim());
             builder.maxConnectionAge(age, TimeUnit.SECONDS);
             String grace = PropertyUtil.getPropertyValue(SERVER_MAX_CONNECTION_AGE_GRACE, null);
+            String graceLog = "unlimited";
             if (grace != null && !grace.isBlank()) {
-                builder.maxConnectionAgeGrace(Long.parseLong(grace.trim()), TimeUnit.SECONDS);
+                long graceSeconds = Long.parseLong(grace.trim());
+                builder.maxConnectionAgeGrace(graceSeconds, TimeUnit.SECONDS);
+                graceLog = graceSeconds + "s";
             }
-            LOGGER.info(
-                    "gRPC maxConnectionAge={}s maxConnectionAgeGrace={}",
-                    age,
-                    grace == null || grace.isBlank() ? "unlimited" : grace.trim() + "s");
+            LOGGER.info("gRPC maxConnectionAge={}s maxConnectionAgeGrace={}", age, graceLog);
         }
         String maxIdle = PropertyUtil.getPropertyValue(SERVER_MAX_CONNECTION_IDLE, null);
         if (maxIdle != null && !maxIdle.isBlank()) {
-            builder.maxConnectionIdle(Long.parseLong(maxIdle.trim()), TimeUnit.SECONDS);
-            LOGGER.info("gRPC maxConnectionIdle={}s", maxIdle.trim());
+            long idle = Long.parseLong(maxIdle.trim());
+            builder.maxConnectionIdle(idle, TimeUnit.SECONDS);
+            LOGGER.info("gRPC maxConnectionIdle={}s", idle);
         }
     }
 

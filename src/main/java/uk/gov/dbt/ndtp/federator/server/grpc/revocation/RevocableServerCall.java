@@ -11,6 +11,7 @@ import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.Status;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import javax.net.ssl.SSLSession;
 
 /**
@@ -29,7 +30,7 @@ public final class RevocableServerCall<ReqT, RespT>
     private final String connectionId;
     private final SSLSession sslSession;
     private volatile boolean terminated;
-    private volatile Runnable onClosed = () -> {};
+    private final AtomicReference<Runnable> onClosed = new AtomicReference<>(() -> {});
 
     public RevocableServerCall(ServerCall<ReqT, RespT> delegate, String connectionId, SSLSession sslSession) {
         super(delegate);
@@ -39,7 +40,7 @@ public final class RevocableServerCall<ReqT, RespT>
 
     /** Runs once, after the call is closed by the application or terminated. */
     void onClosed(Runnable callback) {
-        this.onClosed = callback;
+        this.onClosed.set(callback);
     }
 
     public String connectionId() {
@@ -65,7 +66,7 @@ public final class RevocableServerCall<ReqT, RespT>
             sslSession.invalidate();
         }
         if (closedNow) {
-            onClosed.run();
+            onClosed.get().run();
         }
         return closedNow;
     }
@@ -114,7 +115,7 @@ public final class RevocableServerCall<ReqT, RespT>
             }
         }
         if (closedNow) {
-            onClosed.run();
+            onClosed.get().run();
         }
     }
 

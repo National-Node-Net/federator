@@ -284,48 +284,68 @@ public final class ResilienceSupport {
                     .waitDurationInOpenState(waitOpen)
                     .build();
         }
-    }
 
-    private static @NonNull IntervalFunction getIntervalFunction(Duration initialWait, Duration maxBackoff) {
-        return attempt -> {
-            // attempt starts at 1 for first retry
-            long base = initialWait.toMillis();
-            long max = maxBackoff.toMillis();
-            long factor = 1L << Math.clamp(attempt - 1L, 0L, 30L);
-            long next = min(base * factor, max);
-            LOG.debug("Resilience retry: attempt {} will wait {} ms before next try (cap {} ms)", attempt, next, max);
-            return next;
-        };
-    }
-
-    private static float parseFloat(String key, float def) {
-        String v = PropertyUtil.getPropertyValue(key, String.valueOf(def));
-        try {
-            return Float.parseFloat(v.trim());
-        } catch (Exception e) {
-            return def;
+        private static @NonNull IntervalFunction getIntervalFunction(Duration initialWait, Duration maxBackoff) {
+            return attempt -> {
+                // attempt starts at 1 for first retry
+                long base = initialWait.toMillis();
+                long max = maxBackoff.toMillis();
+                long factor = 1L << Math.clamp(attempt - 1L, 0L, 30L);
+                long next = min(base * factor, max);
+                LOG.debug(
+                        "Resilience retry: attempt {} will wait {} ms before next try (cap {} ms)", attempt, next, max);
+                return next;
+            };
         }
-    }
 
-    private static Class<?>[] parseExceptionClasses(String csv) {
-        if (csv == null || csv.trim().isEmpty()) return new Class<?>[0];
-        String[] parts = csv.split(",");
-        java.util.List<Class<?>> classes = new java.util.ArrayList<>();
-        for (String p : parts) {
-            String name = p.trim();
-            if (name.isEmpty()) continue;
+        private static float parseFloat(String key, float def) {
+            String v = PropertyUtil.getPropertyValue(key, String.valueOf(def));
             try {
-                Class<?> cls = Class.forName(name);
-                if (Throwable.class.isAssignableFrom(cls)) {
-                    classes.add(cls);
-                } else {
-                    LOG.warn("Configured retry class {} is not a Throwable and will be ignored", name);
-                }
-            } catch (ClassNotFoundException e) {
-                LOG.warn("Configured retry class {} not found; ignoring", name);
+                return Float.parseFloat(v.trim());
+            } catch (Exception e) {
+                return def;
             }
         }
-        return classes.toArray(new Class<?>[0]);
+
+        private static Class<?>[] parseExceptionClasses(String csv) {
+            if (csv == null || csv.trim().isEmpty()) return new Class<?>[0];
+            String[] parts = csv.split(",");
+            java.util.List<Class<?>> classes = new java.util.ArrayList<>();
+            for (String p : parts) {
+                String name = p.trim();
+                if (name.isEmpty()) continue;
+                try {
+                    Class<?> cls = Class.forName(name);
+                    if (Throwable.class.isAssignableFrom(cls)) {
+                        classes.add(cls);
+                    } else {
+                        LOG.warn("Configured retry class {} is not a Throwable and will be ignored", name);
+                    }
+                } catch (ClassNotFoundException e) {
+                    LOG.warn("Configured retry class {} not found; ignoring", name);
+                }
+            }
+            return classes.toArray(new Class<?>[0]);
+        }
+
+        /**
+         * Enriches the message of a RebuildableRuntimeException and rethrows it.
+         * If the exception is not a RebuildableRuntimeException it is rethrown as-is.
+         *
+         * @param ex the exception to enrich
+         * @param componentName the name of the component involved in the exception
+         * @param operation the name of the operation attempted before the exception was raised
+         * @param targetId the id of the target involved in the exception
+         */
+        private static void enrichAndRethrow(
+                RuntimeException ex, String componentName, String operation, String targetId) {
+            if (!(ex instanceof RebuildableRuntimeException rebuildableRuntimeException)) {
+                throw ex;
+            }
+
+            String enrichedMessage = buildFailureMessage(ex, componentName, operation, targetId);
+            throw rebuildableRuntimeException.rebuild(enrichedMessage, ex);
+        }
     }
 
     /**
@@ -411,23 +431,5 @@ public final class ResilienceSupport {
             current = current.getCause();
         }
         return current;
-    }
-
-    /**
-     * Enriches the message of a RebuildableRuntimeException and rethrows it.
-     * If the exception is not a RebuildableRuntimeException it is rethrown as-is.
-     *
-     * @param e the exception to enrich
-     * @param componentName the name of the component involved in the exception
-     * @param operation the name of the operation attempted before the exception was raised
-     * @param targetId the id of the target involved in the exception
-     */
-    private static void enrichAndRethrow(RuntimeException ex, String componentName, String operation, String targetId) {
-        if (!(ex instanceof RebuildableRuntimeException rebuildableRuntimeException)) {
-            throw ex;
-        }
-
-        String enrichedMessage = buildFailureMessage(ex, componentName, operation, targetId);
-        throw rebuildableRuntimeException.rebuild(enrichedMessage, ex);
     }
 }

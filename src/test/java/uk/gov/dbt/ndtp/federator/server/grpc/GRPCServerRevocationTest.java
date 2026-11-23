@@ -140,7 +140,8 @@ class GRPCServerRevocationTest {
         TestPki.Issued consumer = pki.node("consumer-r");
         stub.answer(consumer.certificate().getSerialNumber(), Answer.REVOKED);
 
-        StatusRuntimeException e = assertThrows(StatusRuntimeException.class, () -> firstMessage(channel(consumer)));
+        ManagedChannel rejected = channel(consumer);
+        StatusRuntimeException e = assertThrows(StatusRuntimeException.class, () -> firstMessage(rejected));
 
         assertEquals(Status.Code.UNAVAILABLE, e.getStatus().getCode());
         assertEquals(0, service.calls.get(), "no call reached the service");
@@ -150,7 +151,8 @@ class GRPCServerRevocationTest {
     void unknownConsumerIsRejectedAtTheHandshake() throws Exception {
         TestPki.Issued consumer = pki.node("consumer-u");
         stub.answer(consumer.certificate().getSerialNumber(), Answer.UNKNOWN);
-        assertThrows(StatusRuntimeException.class, () -> firstMessage(channel(consumer)));
+        ManagedChannel rejected = channel(consumer);
+        assertThrows(StatusRuntimeException.class, () -> firstMessage(rejected));
         assertEquals(0, service.calls.get());
     }
 
@@ -186,7 +188,8 @@ class GRPCServerRevocationTest {
         await().atMost(Duration.ofSeconds(3)).until(() -> otherStream.messages.get() > otherBefore);
         assertEquals(null, otherStream.error.get(), "other consumer unaffected");
 
-        assertThrows(StatusRuntimeException.class, () -> firstMessage(channel(revoked)));
+        ManagedChannel reconnect = channel(revoked);
+        assertThrows(StatusRuntimeException.class, () -> firstMessage(reconnect));
         assertTrue(logs.list.stream()
                 .anyMatch(e -> e.getFormattedMessage().contains("phase=recheck")
                         && e.getFormattedMessage().contains("result=close")
@@ -248,7 +251,7 @@ class GRPCServerRevocationTest {
     }
 
     @Test
-    void sslContextUsesTheConfiguredSessionTimeout() throws Exception {
+    void sslContextUsesTheConfiguredSessionTimeout() {
         long timeout = GRPCServer.buildSslContext(
                         pki.keyManagerFactory(pki.node("p")).getKeyManagers()[0],
                         TestPki.trustManager(pki.caCertificate()))

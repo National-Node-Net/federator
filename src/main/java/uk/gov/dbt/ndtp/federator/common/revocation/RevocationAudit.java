@@ -46,6 +46,10 @@ public class RevocationAudit {
 
     private static final Logger LOG = LoggerFactory.getLogger("RevocationAudit");
     private static final Marker ALERT = MarkerFactory.getMarker(SECURITY_ALERT);
+    private static final String DECISION_FORMAT =
+            "event=revocation.decision component={} phase={} peer_serial={} issuer=\"{}\" status={}"
+                    + " result={} cause={} connection_id={} detail=\"{}\"";
+    private static final String ALERT_FORMAT = DECISION_FORMAT + " alert=" + SECURITY_ALERT;
 
     /** Where the decision was taken. */
     public enum Phase {
@@ -182,8 +186,6 @@ public class RevocationAudit {
     }
 
     private void log(Phase phase, Peer peer, String status, Result result, String cause, String detail) {
-        String format = "event=revocation.decision component={} phase={} peer_serial={} issuer=\"{}\" status={}"
-                + " result={} cause={} connection_id={} detail=\"{}\"";
         Object[] args = {
             component,
             phase.tag(),
@@ -198,15 +200,15 @@ public class RevocationAudit {
         boolean unavailable = "unavailable".equals(cause);
         if (result == Result.ALLOW) {
             if (unavailable) {
-                LOG.warn(format, args);
+                LOG.warn(DECISION_FORMAT, args);
             } else {
-                LOG.debug(format, args);
+                LOG.debug(DECISION_FORMAT, args);
             }
         } else if (unavailable) {
             // the marker is for encoders/filters that use it; the key makes the alert visible with any log pattern
-            LOG.error(ALERT, format + " alert=" + SECURITY_ALERT, args);
+            LOG.error(ALERT, ALERT_FORMAT, args);
         } else {
-            LOG.warn(format, args);
+            LOG.warn(DECISION_FORMAT, args);
         }
     }
 }

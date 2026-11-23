@@ -20,6 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.LongSupplier;
 import lombok.extern.slf4j.Slf4j;
 import uk.gov.dbt.ndtp.federator.common.service.idp.IdpTokenService;
@@ -56,7 +57,7 @@ public class OcspTokenProvider implements AutoCloseable {
     private final LongSupplier nanoTime;
     private final Duration maxRequestAge;
     private final ExecutorService executor;
-    private volatile CachedToken cached;
+    private final AtomicReference<CachedToken> cached = new AtomicReference<>();
     private Request inFlight;
 
     public OcspTokenProvider(IdpTokenService tokenService, Clock clock) {
@@ -82,14 +83,14 @@ public class OcspTokenProvider implements AutoCloseable {
      * @throws OcspResponderException of type {@code TOKEN} when no token is available in time
      */
     public String token(Duration timeout) {
-        CachedToken current = cached;
+        CachedToken current = cached.get();
         if (current != null && clock.instant().plus(EXPIRY_MARGIN).isBefore(current.expiresAt())) {
             return current.value();
         }
         Future<String> request = request();
         try {
             String token = request.get(Math.max(timeout.toMillis(), 1), TimeUnit.MILLISECONDS);
-            cached = new CachedToken(token, expiry(token));
+            cached.set(new CachedToken(token, expiry(token)));
             return token;
         } catch (TimeoutException e) {
             throw new OcspResponderException.Retryable(

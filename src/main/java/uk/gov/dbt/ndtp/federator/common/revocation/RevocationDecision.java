@@ -35,13 +35,13 @@ public sealed interface RevocationDecision {
     }
 
     /**
-     * @return the responder failure type, or null for a verified status
+     * @return where a verified status came from ({@code cache} or {@code ocsp}), or the responder failure type and
+     *     message
      */
     default String detail() {
         return switch (this) {
             case Status status -> status.fromCache() ? "cache" : "ocsp";
-            case ResponderFailure failure ->
-                failure.cause().getType().tag() + ": " + failure.cause().getMessage();
+            case ResponderFailure(var cause) -> cause.getType().tag() + ": " + cause.getMessage();
         };
     }
 

@@ -113,6 +113,7 @@ class ServerRevocationSetupTest {
     void ttlAboveTheMaximumFailsStartup() {
         RevocationTestSupport.initProperties(
                 tempDir, Map.of("management.node.base.url", "https://mn", "revocation.cache.ttl.seconds", "900"));
-        assertThrows(ConfigurationException.class, () -> create(true, new AtomicBoolean()));
+        AtomicBoolean warned = new AtomicBoolean();
+        assertThrows(ConfigurationException.class, () -> create(true, warned));
     }
 }
