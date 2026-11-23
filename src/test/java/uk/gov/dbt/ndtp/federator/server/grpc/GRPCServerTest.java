@@ -18,8 +18,8 @@ import java.util.Set;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509ExtendedTrustManager;
 import javax.net.ssl.X509KeyManager;
-import javax.net.ssl.X509TrustManager;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
@@ -112,7 +112,7 @@ class GRPCServerTest {
                     .thenAnswer(invocation -> invocation.getArgument(1));
 
             X509KeyManager mockKeyManager = mock(X509KeyManager.class);
-            X509TrustManager mockTrustManager = mock(X509TrustManager.class);
+            X509ExtendedTrustManager mockTrustManager = mock(X509ExtendedTrustManager.class);
 
             sslUtilsMockedStatic
                     .when(() -> SSLUtils.createKeyManagerFromP12(anyString(), anyString()))

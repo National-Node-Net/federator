@@ -2,6 +2,7 @@ package uk.gov.dbt.ndtp.federator.common.service.idp;
 
 import com.nimbusds.jwt.SignedJWT;
 import java.text.ParseException;
+import java.time.Duration;
 import java.util.List;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -30,6 +31,10 @@ public interface IdpTokenService {
     // HTTP request constants
     String HEADER_CONTENT_TYPE = "Content-Type";
     String CONTENT_TYPE_FORM_URLENCODED = "application/x-www-form-urlencoded";
+
+    /** Upper bound for one token request to the IdP, so a hanging IdP cannot block callers forever. */
+    Duration TOKEN_REQUEST_TIMEOUT = Duration.ofSeconds(30);
+
     Logger log = LoggerFactory.getLogger(IdpTokenService.class);
 
     @SuppressWarnings("java:S2139") // Rethrow exception after logging

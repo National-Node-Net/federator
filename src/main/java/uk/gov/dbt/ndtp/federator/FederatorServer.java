@@ -36,8 +36,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import uk.gov.dbt.ndtp.federator.common.metrics.MetricsServer;
 import uk.gov.dbt.ndtp.federator.common.utils.PropertyUtil;
 import uk.gov.dbt.ndtp.federator.common.utils.ThreadUtil;
+import uk.gov.dbt.ndtp.federator.exceptions.ConfigurationException;
 import uk.gov.dbt.ndtp.federator.server.grpc.GRPCServer;
 
 /**
@@ -104,12 +106,30 @@ public class FederatorServer {
         String sHeaders = PropertyUtil.getPropertyValue(SHARED_HEADERS, CONTENT_TYPE);
         Set<String> sharedHeaders = Set.of(sHeaders.split(HEADER_SEPARATOR));
         LOGGER.info("Shared Headers - '{}'", sharedHeaders);
-        try (GRPCServer server = new GRPCServer(sharedHeaders)) {
+        GRPCServer grpcServer;
+        try {
+            grpcServer = new GRPCServer(sharedHeaders);
+        } catch (ConfigurationException e) {
+            LOGGER.error("Invalid configuration, the server cannot start: {}", e.getMessage(), e);
+            System.exit(1);
+            return;
+        } catch (RuntimeException e) {
+            // e.g. missing keystore or truststore; without the server the process must not stay up
+            LOGGER.error("The gRPC server could not be created, exiting: {}", e.getMessage(), e);
+            System.exit(1);
+            return;
+        }
+        MetricsServer metricsServer = MetricsServer.startIfEnabled();
+        try (GRPCServer server = grpcServer) {
             futureList.add(THREADED_EXECUTOR.submit(server::start));
             ThreadUtil.awaitShutdown(futureList, server, THREADED_EXECUTOR);
             LOGGER.debug("Post ThreadUtil Shutdown");
         } catch (Exception e) {
             LOGGER.error("MessageServeable failed to close.", e);
+        } finally {
+            if (metricsServer != null) {
+                metricsServer.close();
+            }
         }
         LOGGER.info("Server stopped.");
     }

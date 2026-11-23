@@ -74,6 +74,7 @@ public class IdpTokenServiceMtlsImpl extends AbstractIdpTokenService {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(idpTokenUrl))
                     .header(HEADER_CONTENT_TYPE, CONTENT_TYPE_FORM_URLENCODED)
+                    .timeout(TOKEN_REQUEST_TIMEOUT)
                     .POST(HttpRequest.BodyPublishers.ofString(body))
                     .build();
             log.debug("attempting to fetch token for management node {}", idpTokenUrl);
