@@ -40,6 +40,10 @@ public class RevocationAudit {
     static final String OCSP_ERRORS = "federator.ocsp.errors";
     static final String CACHE_LOOKUPS = "federator.revocation.cache.lookups";
 
+    private static final String TAG_PHASE = "phase";
+    private static final String TAG_RESULT = "result";
+    private static final String TAG_CAUSE = "cause";
+
     private static final Logger LOG = LoggerFactory.getLogger("RevocationAudit");
     private static final Marker ALERT = MarkerFactory.getMarker(SECURITY_ALERT);
 
@@ -107,20 +111,20 @@ public class RevocationAudit {
         counter(
                         CHECKS,
                         "Revocation decisions by check point and result",
-                        "phase",
+                        TAG_PHASE,
                         phase.tag(),
-                        "result",
+                        TAG_RESULT,
                         result.tag(),
-                        "cause",
+                        TAG_CAUSE,
                         cause)
                 .increment();
         if (result == Result.REJECT) {
             counter(
                             CALLS_REJECTED,
                             "Handshakes and calls rejected by revocation checks",
-                            "phase",
+                            TAG_PHASE,
                             phase.tag(),
-                            "cause",
+                            TAG_CAUSE,
                             cause)
                     .increment();
         }
@@ -138,7 +142,7 @@ public class RevocationAudit {
      * Counts connections whose calls were all closed after a re-check.
      */
     public void connectionsClosed(String cause, int connections) {
-        counter(CONNECTIONS_CLOSED, "Connections whose calls were terminated by revocation re-checks", "cause", cause)
+        counter(CONNECTIONS_CLOSED, "Connections whose calls were terminated by revocation re-checks", TAG_CAUSE, cause)
                 .increment(connections);
     }
 
@@ -173,7 +177,7 @@ public class RevocationAudit {
      * Counts status cache lookups, for the cache hit rate.
      */
     public void cacheLookup(boolean hit, String cacheType) {
-        counter(CACHE_LOOKUPS, "Revocation status cache lookups", "cache", cacheType, "result", hit ? "hit" : "miss")
+        counter(CACHE_LOOKUPS, "Revocation status cache lookups", "cache", cacheType, TAG_RESULT, hit ? "hit" : "miss")
                 .increment();
     }
 

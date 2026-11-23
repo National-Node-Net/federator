@@ -196,6 +196,21 @@ class ServerRevocationInterceptorTest {
     }
 
     @Test
+    void callWithEmptyPeerChainIsRejected() throws Exception {
+        SSLSession session = mock(SSLSession.class);
+        when(session.getPeerCertificates()).thenReturn(new Certificate[0]);
+        when(call.getAttributes())
+                .thenReturn(Attributes.newBuilder()
+                        .set(Grpc.TRANSPORT_ATTR_SSL_SESSION, session)
+                        .build());
+
+        interceptor(true).interceptCall(call, new Metadata(), next);
+
+        assertEquals(Status.Code.UNAUTHENTICATED, closedWith().getCode());
+        verify(checker, never()).check(any());
+    }
+
+    @Test
     void callWithoutTlsSessionIsRejected() {
         when(call.getAttributes()).thenReturn(Attributes.EMPTY);
         interceptor(true).interceptCall(call, new Metadata(), next);

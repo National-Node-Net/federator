@@ -48,6 +48,8 @@ public class ServerRevocationInterceptor implements ServerInterceptor {
     /** SSLSession value holding the resolved {@link RevocationTarget} of the peer. */
     static final String SESSION_TARGET = "uk.gov.dbt.ndtp.federator.revocation.target";
 
+    private static final X509Certificate[] NO_CHAIN = new X509Certificate[0];
+
     private final RevocationChecker checker;
     private final ActiveCallRegistry registry;
     private final RevocationAudit audit;
@@ -76,7 +78,7 @@ public class ServerRevocationInterceptor implements ServerInterceptor {
         RevocationTarget target = session == null ? null : sessionTarget(session);
         if (target == null) {
             X509Certificate[] chain = peerChain(session);
-            if (chain == null) {
+            if (session == null || chain.length == 0) {
                 Peer peer = new Peer("-", "-", connectionId);
                 audit.decision(Phase.CALL, peer, "none", Result.REJECT, "no_client_certificate", null);
                 return reject(call, Status.UNAUTHENTICATED.withDescription("Client certificate required"));
@@ -141,14 +143,15 @@ public class ServerRevocationInterceptor implements ServerInterceptor {
         return new ServerCall.Listener<>() {};
     }
 
+    /** The peer's X.509 chain, leaf first; empty when there is no session or no verified client certificate. */
     private static X509Certificate[] peerChain(SSLSession session) {
         if (session == null) {
-            return null;
+            return NO_CHAIN;
         }
         try {
             Certificate[] certificates = session.getPeerCertificates();
-            if (certificates.length == 0 || !(certificates[0] instanceof X509Certificate)) {
-                return null;
+            if (certificates == null || certificates.length == 0 || !(certificates[0] instanceof X509Certificate)) {
+                return NO_CHAIN;
             }
             X509Certificate[] chain = new X509Certificate[certificates.length];
             for (int i = 0; i < certificates.length; i++) {
@@ -156,7 +159,7 @@ public class ServerRevocationInterceptor implements ServerInterceptor {
             }
             return chain;
         } catch (SSLPeerUnverifiedException | ClassCastException e) {
-            return null;
+            return NO_CHAIN;
         }
     }
 
