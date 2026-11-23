@@ -14,9 +14,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.verify;
 
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
@@ -162,7 +164,8 @@ class GRPCClientRevocationTest {
         Producer producer = producer("ProducerA", 5);
         AtomicInteger written = new AtomicInteger();
         try (MockedStatic<RedisUtil> redis = mockStatic(RedisUtil.class)) {
-            redis.when(RedisUtil::getInstance).thenReturn(mock(RedisUtil.class));
+            RedisUtil redisInstance = mock(RedisUtil.class);
+            redis.when(RedisUtil::getInstance).thenReturn(redisInstance);
 
             topicClient(producer).consumeMessagesAndSendOn(request(), countingSink(written, () -> {}));
         }
@@ -176,10 +179,14 @@ class GRPCClientRevocationTest {
         stub.answer(producer.certificate().certificate().getSerialNumber(), Answer.REVOKED);
         AtomicInteger written = new AtomicInteger();
         try (MockedStatic<RedisUtil> redis = mockStatic(RedisUtil.class)) {
-            redis.when(RedisUtil::getInstance).thenReturn(mock(RedisUtil.class));
+            RedisUtil redisInstance = mock(RedisUtil.class);
+            redis.when(RedisUtil::getInstance).thenReturn(redisInstance);
 
-            RuntimeException failure = assertThrows(RuntimeException.class, () -> topicClient(producer)
-                    .consumeMessagesAndSendOn(request(), countingSink(written, () -> {})));
+            GRPCTopicClient client = topicClient(producer);
+            TopicRequest topicRequest = request();
+            KafkaSink<Bytes, Bytes> sink = countingSink(written, () -> {});
+            RuntimeException failure =
+                    assertThrows(RuntimeException.class, () -> client.consumeMessagesAndSendOn(topicRequest, sink));
 
             assertEquals(
                     RevocationFailures.Kind.PEER_CERTIFICATE_REJECTED,
@@ -194,9 +201,13 @@ class GRPCClientRevocationTest {
         Producer producer = producer("ProducerA", 5);
         stub.answer(producer.certificate().certificate().getSerialNumber(), Answer.UNKNOWN);
         try (MockedStatic<RedisUtil> redis = mockStatic(RedisUtil.class)) {
-            redis.when(RedisUtil::getInstance).thenReturn(mock(RedisUtil.class));
-            RuntimeException failure = assertThrows(RuntimeException.class, () -> topicClient(producer)
-                    .consumeMessagesAndSendOn(request(), countingSink(new AtomicInteger(), () -> {})));
+            RedisUtil redisInstance = mock(RedisUtil.class);
+            redis.when(RedisUtil::getInstance).thenReturn(redisInstance);
+            GRPCTopicClient client = topicClient(producer);
+            TopicRequest topicRequest = request();
+            KafkaSink<Bytes, Bytes> sink = countingSink(new AtomicInteger(), () -> {});
+            RuntimeException failure =
+                    assertThrows(RuntimeException.class, () -> client.consumeMessagesAndSendOn(topicRequest, sink));
             assertEquals(
                     RevocationFailures.Kind.PEER_CERTIFICATE_REJECTED,
                     RevocationFailures.classify(failure).orElseThrow());
@@ -239,13 +250,14 @@ class GRPCClientRevocationTest {
         ManagedChannel revokedChannel;
         RuntimeException failure;
         try (MockedStatic<RedisUtil> redis = mockStatic(RedisUtil.class)) {
-            redis.when(RedisUtil::getInstance).thenReturn(mock(RedisUtil.class));
+            RedisUtil redisInstance = mock(RedisUtil.class);
+            redis.when(RedisUtil::getInstance).thenReturn(redisInstance);
             GRPCTopicClient client = topicClient(revoked);
             revokedChannel = client.getChannel();
 
-            failure = assertThrows(
-                    RuntimeException.class,
-                    () -> client.consumeMessagesAndSendOn(request(), countingSink(written, revokeAfterFiveMessages)));
+            TopicRequest topicRequest = request();
+            KafkaSink<Bytes, Bytes> sink = countingSink(written, revokeAfterFiveMessages);
+            failure = assertThrows(RuntimeException.class, () -> client.consumeMessagesAndSendOn(topicRequest, sink));
         }
         Duration detection = Duration.ofNanos(System.nanoTime() - revokedAt.get());
 
@@ -274,9 +286,13 @@ class GRPCClientRevocationTest {
             }
         };
         try (MockedStatic<RedisUtil> redis = mockStatic(RedisUtil.class)) {
-            redis.when(RedisUtil::getInstance).thenReturn(mock(RedisUtil.class));
-            RuntimeException failure = assertThrows(RuntimeException.class, () -> topicClient(producer)
-                    .consumeMessagesAndSendOn(request(), countingSink(written, outageAfterFiveMessages)));
+            RedisUtil redisInstance = mock(RedisUtil.class);
+            redis.when(RedisUtil::getInstance).thenReturn(redisInstance);
+            GRPCTopicClient client = topicClient(producer);
+            TopicRequest topicRequest = request();
+            KafkaSink<Bytes, Bytes> sink = countingSink(written, outageAfterFiveMessages);
+            RuntimeException failure =
+                    assertThrows(RuntimeException.class, () -> client.consumeMessagesAndSendOn(topicRequest, sink));
             assertEquals(
                     RevocationFailures.Kind.PEER_STATUS_UNAVAILABLE,
                     RevocationFailures.classify(failure).orElseThrow());
@@ -299,8 +315,7 @@ class GRPCClientRevocationTest {
                     requestsAtSecondConnection.set(stub.requests());
                 }
             }));
-            org.mockito.Mockito.verify(redisUtil, org.mockito.Mockito.atLeastOnce())
-                    .setOffset(anyString(), anyString(), anyLong());
+            verify(redisUtil, atLeastOnce()).setOffset(anyString(), anyString(), anyLong());
             assertEquals(1, requestsAtSecondConnection.get(), "second connection served from the cache");
         }
     }

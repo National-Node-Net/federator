@@ -10,6 +10,7 @@ import io.grpc.ClientCall;
 import io.grpc.ManagedChannel;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import uk.gov.dbt.ndtp.federator.common.revocation.RevocationVerdict;
 import uk.gov.dbt.ndtp.federator.common.revocation.TerminableCall;
 
@@ -27,7 +28,7 @@ final class RevocableClientCall implements TerminableCall {
     private final String serial;
     private final String connectionId;
     private final AtomicBoolean closed = new AtomicBoolean(false);
-    private volatile Runnable onClosed = () -> {};
+    private final AtomicReference<Runnable> onClosed = new AtomicReference<>(() -> {});
 
     RevocableClientCall(
             ClientCall<?, ?> call, ManagedChannel channel, RevocationGuard guard, String serial, String connectionId) {
@@ -58,7 +59,7 @@ final class RevocableClientCall implements TerminableCall {
         if (channel != null) {
             channel.shutdownNow();
         }
-        onClosed.run();
+        onClosed.get().run();
         return true;
     }
 
@@ -74,12 +75,12 @@ final class RevocableClientCall implements TerminableCall {
     /** Called when the call ends on its own. */
     void closed() {
         if (closed.compareAndSet(false, true)) {
-            onClosed.run();
+            onClosed.get().run();
         }
     }
 
     @Override
     public void onClosed(Runnable callback) {
-        this.onClosed = callback;
+        this.onClosed.set(callback);
     }
 }

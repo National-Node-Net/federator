@@ -107,7 +107,7 @@ class RevocationJobFailuresTest {
     }
 
     @Test
-    void clientGrpcJobThrowsTheNonRetryableException() throws Exception {
+    void clientGrpcJobThrowsTheNonRetryableException() {
         WrappedGRPCClient client = mock(WrappedGRPCClient.class);
         when(client.getRedisPrefix()).thenReturn("prefix");
         doThrow(new ClientGRPCJobException("stream failed", handshakeFailure("revoked")))

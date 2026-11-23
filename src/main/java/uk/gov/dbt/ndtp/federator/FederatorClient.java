@@ -174,11 +174,6 @@ public class FederatorClient {
     }
 
     /**
-     * Creates HTTP client with SSL if configured.
-     *
-     * @return HTTP client
-     */
-    /**
      * Sets up the revocation checks of producer certificates (see {@link ClientRevocation}). An invalid setting fails
      * startup.
      */
@@ -194,6 +189,11 @@ public class FederatorClient {
         Runtime.getRuntime().addShutdownHook(new Thread(ClientRevocation::close, "revocation-shutdown"));
     }
 
+    /**
+     * Creates HTTP client with SSL if configured.
+     *
+     * @return HTTP client
+     */
     private static HttpClient createHttpClient() {
         final Properties props = PropertyUtil.getIdpProperties();
         try {

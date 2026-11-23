@@ -108,11 +108,12 @@ class ClientRevocationTest {
     void invalidTtlFailsStartup() {
         RevocationTestSupport.initProperties(
                 tempDir, Map.of("management.node.base.url", "https://mn", "revocation.cache.ttl.seconds", "601"));
-        assertThrows(ConfigurationException.class, () -> install(new AtomicBoolean()));
+        AtomicBoolean warned = new AtomicBoolean();
+        assertThrows(ConfigurationException.class, () -> install(warned));
     }
 
     @Test
-    void sessionTimeoutIsConfigurableAndEmptyMeansDefault() throws Exception {
+    void sessionTimeoutIsConfigurableAndEmptyMeansDefault() {
         RevocationTestSupport.initProperties(tempDir, Map.of("client.tlsSessionTimeout.seconds", ""));
         assertEquals(300, RevocationCheckedChannels.sessionTimeoutSeconds());
 
