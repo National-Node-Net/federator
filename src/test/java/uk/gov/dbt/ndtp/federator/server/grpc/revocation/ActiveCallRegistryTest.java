@@ -120,7 +120,7 @@ class ActiveCallRegistryTest {
         assertEquals(1, registry.openCalls(other.key()));
         assertEquals(
                 2.0,
-                meters.get("federator.connections.closed")
+                meters.get("federator.revocation.connections.terminated")
                         .tag("cause", "revoked")
                         .counter()
                         .count());

@@ -13,12 +13,14 @@
 
 - Producer: OCSP revocation checks of consumer client certificates against the Management Node OCSP API
   (`/api/v1/certificate/ocsp`) in the TLS handshake, on every gRPC call and when the cached status of a
-  consumer with open calls expires. Revoked or unknown consumers are rejected and their open calls closed.
+  consumer with open calls expires. Revoked or unknown consumers are rejected, their open calls closed and
+  their connections closed once idle.
   Configurable cache (`memory` or `redis`, TTL at most 600 s), fail-closed by default, own resilience
   settings (`revocation.ocsp.resilience.*`). See `docs/certificate-revocation.md`.
 - Prometheus metrics endpoint (`metrics.enabled`, `metrics.port`, default `9464`).
 - `server.maxConnectionAge.seconds`, `server.maxConnectionAgeGrace.seconds`, `server.maxConnectionIdle.seconds`
-  and `server.tlsSessionTimeout.seconds`.
+  and `server.tlsSessionTimeout.seconds`; with revocation checks active, `maxConnectionAge` defaults to 1800 s
+  and `maxConnectionIdle` to 60 s.
 
 ### Changed
 

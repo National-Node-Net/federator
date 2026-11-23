@@ -180,7 +180,7 @@ public class ActiveCallRegistry implements AutoCloseable {
                 verdict,
                 Result.CLOSE,
                 calls.size() + " call(s) closed; " + detail);
-        audit.connectionsClosed(verdict.status(), connections.size());
+        audit.connectionsTerminated(verdict.status(), connections.size());
     }
 
     private static String connections(Tracked entry) {

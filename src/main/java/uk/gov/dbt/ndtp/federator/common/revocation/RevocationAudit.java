@@ -35,7 +35,7 @@ public class RevocationAudit {
 
     static final String CHECKS = "federator.revocation.checks";
     static final String CALLS_REJECTED = "federator.calls.rejected";
-    static final String CONNECTIONS_CLOSED = "federator.connections.closed";
+    static final String CONNECTIONS_TERMINATED = "federator.revocation.connections.terminated";
     static final String OCSP_DURATION = "federator.ocsp.request.duration";
     static final String OCSP_ERRORS = "federator.ocsp.errors";
     static final String CACHE_LOOKUPS = "federator.revocation.cache.lookups";
@@ -143,10 +143,15 @@ public class RevocationAudit {
     }
 
     /**
-     * Counts connections whose calls were all closed after a re-check.
+     * Counts connections whose calls were all terminated after a re-check. The producer cannot close one connection
+     * through the public gRPC API: the connection itself closes once idle ({@code server.maxConnectionIdle.seconds}).
      */
-    public void connectionsClosed(String cause, int connections) {
-        counter(CONNECTIONS_CLOSED, "Connections whose calls were terminated by revocation re-checks", TAG_CAUSE, cause)
+    public void connectionsTerminated(String cause, int connections) {
+        counter(
+                        CONNECTIONS_TERMINATED,
+                        "Connections whose calls were all terminated by a revocation re-check",
+                        TAG_CAUSE,
+                        cause)
                 .increment(connections);
     }
 

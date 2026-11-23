@@ -38,7 +38,7 @@ class GRPCServerConnectionLifecycleTest {
     }
 
     @Test
-    void revocationActiveAppliesMaxConnectionAgeWithoutAGraceKill() {
+    void revocationActiveAppliesMaxConnectionAgeAndIdleWithoutAGraceKill() {
         RevocationTestSupport.initProperties(tempDir, Map.of());
         NettyServerBuilder builder = builder();
 
@@ -46,7 +46,7 @@ class GRPCServerConnectionLifecycleTest {
 
         verify(builder).maxConnectionAge(1800, TimeUnit.SECONDS);
         verify(builder, never()).maxConnectionAgeGrace(anyLong(), any());
-        verify(builder, never()).maxConnectionIdle(anyLong(), any());
+        verify(builder).maxConnectionIdle(60, TimeUnit.SECONDS);
     }
 
     @Test
@@ -66,8 +66,9 @@ class GRPCServerConnectionLifecycleTest {
 
         verify(active).maxConnectionAge(1800, TimeUnit.SECONDS);
         verify(active, never()).maxConnectionAgeGrace(anyLong(), any());
-        verify(active, never()).maxConnectionIdle(anyLong(), any());
+        verify(active).maxConnectionIdle(60, TimeUnit.SECONDS);
         verify(inactive, never()).maxConnectionAge(anyLong(), any());
+        verify(inactive, never()).maxConnectionIdle(anyLong(), any());
     }
 
     @Test
@@ -78,6 +79,7 @@ class GRPCServerConnectionLifecycleTest {
         GRPCServer.configureConnectionLifecycle(builder, false);
 
         verify(builder, never()).maxConnectionAge(anyLong(), any());
+        verify(builder, never()).maxConnectionIdle(anyLong(), any());
     }
 
     @Test

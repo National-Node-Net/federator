@@ -90,6 +90,7 @@ public class GRPCServer implements AutoCloseable {
     public static final String SERVER_MAX_CONNECTION_IDLE = "server.maxConnectionIdle.seconds";
     public static final String SERVER_TLS_SESSION_TIMEOUT = "server.tlsSessionTimeout.seconds";
     public static final String DEFAULT_MAX_CONNECTION_AGE = "1800";
+    public static final String DEFAULT_MAX_CONNECTION_IDLE = "60";
     public static final String DEFAULT_TLS_SESSION_TIMEOUT = "300";
     public static final String FIVE = "5";
     public static final String ONE = "1";
@@ -160,6 +161,12 @@ public class GRPCServer implements AutoCloseable {
      * {@code maxConnectionAgeGrace} is applied only when set: it forcibly ends calls still running that long after
      * GOAWAY, which would cut long-lived streams of good consumers. A revoked consumer's open calls are closed by the
      * re-check instead.
+     * <p>
+     * {@code maxConnectionIdle} closes connections that have had no call for that long. With revocation checks active
+     * it defaults to 60 s: grpc-java has no public API to close one server-side connection, so this is what closes the
+     * connection of a revoked consumer once the re-check has terminated its calls, even if the consumer keeps its
+     * channel open. A consumer that keeps sending (rejected) calls is still disconnected by {@code maxConnectionAge}.
+     * Streams of good consumers are not idle and are not affected.
      */
     static void configureConnectionLifecycle(NettyServerBuilder builder, boolean revocationActive) {
         String maxAge = PropertyUtil.getPropertyValue(SERVER_MAX_CONNECTION_AGE, null);
@@ -179,6 +186,9 @@ public class GRPCServer implements AutoCloseable {
             LOGGER.info("gRPC maxConnectionAge={}s maxConnectionAgeGrace={}", age, graceLog);
         }
         String maxIdle = PropertyUtil.getPropertyValue(SERVER_MAX_CONNECTION_IDLE, null);
+        if ((maxIdle == null || maxIdle.isBlank()) && revocationActive) {
+            maxIdle = DEFAULT_MAX_CONNECTION_IDLE;
+        }
         if (maxIdle != null && !maxIdle.isBlank()) {
             long idle = Long.parseLong(maxIdle.trim());
             builder.maxConnectionIdle(idle, TimeUnit.SECONDS);

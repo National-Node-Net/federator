@@ -48,7 +48,7 @@ With `server.mtlsEnabled=true`, consumer client certificates are checked against
 | `revocation.cache.ttl.seconds`         | Status cache TTL, 1–600 (default `300`); the longest time a revoked consumer keeps an open call |
 | `server.maxConnectionAge.seconds`      | GOAWAY after this connection age (default `1800` while revocation checks are active)            |
 | `server.maxConnectionAgeGrace.seconds` | Optional: end calls still running this long after GOAWAY (not set = never)                      |
-| `server.maxConnectionIdle.seconds`     | Optional: close connections without calls after this idle time                                  |
+| `server.maxConnectionIdle.seconds`     | Close connections without calls after this idle time (default `60` while revocation checks are active) |
 | `server.tlsSessionTimeout.seconds`     | TLS session resumption limit (default `300`)                                                    |
 | `metrics.enabled` / `metrics.port`     | Prometheus endpoint `GET /metrics` (default `true` / `9464`)                                    |
 

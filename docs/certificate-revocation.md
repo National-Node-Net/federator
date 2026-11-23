@@ -66,13 +66,14 @@ A response is used only when all of these hold. Otherwise it counts as a respond
 
 ## Connections
 
-grpc-java has no public API to close a single connection, so on revocation the producer:
+grpc-java has no public API to close a single connection on the server, so on revocation the producer:
 
 - closes every call of the certificate (the streaming loop stops and no further data is sent);
 - invalidates the TLS session, so it cannot be resumed;
-- rejects every new call on any remaining connection (the cache now holds `revoked`), and every new handshake.
+- rejects every new call on any remaining connection (the cache now holds `revoked`), and every new handshake;
+- closes the connection once it has had no call for `server.maxConnectionIdle.seconds` (default 60 while revocation checks are active). The consumer federator closes its channel itself when its job fails, so this matters for a client that keeps its connection open.
 
-As backstops, `server.maxConnectionAge.seconds` (default 1800 while revocation checks are active) sends GOAWAY so new calls go over a new connection with a full handshake. Calls already running are not cut (`server.maxConnectionAgeGrace.seconds` is not set by default), because the re-check closes the calls of a revoked consumer anyway; setting the grace ends every long stream of good consumers too. Optionally, `server.maxConnectionIdle.seconds` closes connections that have no calls. `server.tlsSessionTimeout.seconds` (default 300) limits TLS session resumption.
+A client that keeps sending calls is still disconnected by `server.maxConnectionAge.seconds` (default 1800 while revocation checks are active): it sends GOAWAY, after which no new call is accepted on that connection, and the rejected calls end at once. For good consumers it means new calls go over a new connection with a full handshake. Calls already running are not cut (`server.maxConnectionAgeGrace.seconds` is not set by default), because the re-check closes the calls of a revoked consumer anyway; setting the grace ends every long stream of good consumers too. A running stream is not idle, so `maxConnectionIdle` does not affect good consumers either. `server.tlsSessionTimeout.seconds` (default 300) limits TLS session resumption.
 
 The OCSP query in the handshake blocks. The server uses the JDK SSL provider, so Netty runs certificate validation as a delegated task on the gRPC server executor rather than on the event loop.
 
@@ -96,7 +97,7 @@ Metrics are served in Prometheus format at `GET http://<host>:${metrics.port}/me
 |---|---|
 | `federator_revocation_checks_total` | `role`, `phase`, `result`, `cause` |
 | `federator_calls_rejected_total` | `role`, `phase`, `cause` |
-| `federator_connections_closed_total` | `role`, `cause` |
+| `federator_revocation_connections_terminated_total` | `role`, `cause` |
 | `federator_ocsp_request_duration_seconds` | `role`, `outcome` |
 | `federator_ocsp_errors_total` | `role`, `type` |
 | `federator_revocation_cache_lookups_total` | `role`, `cache`, `result` (hit rate) |
@@ -128,6 +129,6 @@ See the `Revocation` sections of `src/configs/server.properties`. Keys:
 | `revocation.ocsp.resilience.circuitBreaker.waitDurationInOpenState` | `PT30S` | Open time |
 | `server.maxConnectionAge.seconds` | `1800` with checks active | GOAWAY after this age |
 | `server.maxConnectionAgeGrace.seconds` | not set | If set, calls still running this long after GOAWAY are ended |
-| `server.maxConnectionIdle.seconds` | not set | Close idle connections |
+| `server.maxConnectionIdle.seconds` | `60` with checks active | Close connections without calls after this idle time |
 | `server.tlsSessionTimeout.seconds` | `300` | TLS session resumption limit |
 | `metrics.enabled` / `metrics.port` | `true` / `9464` | Prometheus endpoint |

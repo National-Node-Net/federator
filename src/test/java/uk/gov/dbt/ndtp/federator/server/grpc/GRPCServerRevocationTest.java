@@ -14,6 +14,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -59,6 +60,8 @@ class GRPCServerRevocationTest {
     private static final Duration TTL = Duration.ofSeconds(2);
     /** TTL + OCSP budget (1 s x 2 attempts) + scheduling slack. */
     private static final Duration DETECTION_BOUND = Duration.ofSeconds(6);
+    /** server.maxConnectionIdle for these tests (60 s by default with revocation checks active). */
+    private static final long MAX_CONNECTION_IDLE_SECONDS = 2;
 
     @TempDir
     Path tempDir;
@@ -96,6 +99,7 @@ class GRPCServerRevocationTest {
                 .sslContext(GRPCServer.buildSslContext(
                         pki.keyManagerFactory(producer).getKeyManagers()[0], components.trustManager()))
                 .addService(ServerInterceptors.intercept(service, components.interceptor()))
+                .maxConnectionIdle(MAX_CONNECTION_IDLE_SECONDS, TimeUnit.SECONDS)
                 .build()
                 .start();
     }
@@ -168,7 +172,8 @@ class GRPCServerRevocationTest {
     void revocationDuringAStreamClosesOnlyThatConsumerAndBlocksReconnection() throws Exception {
         TestPki.Issued revoked = pki.node("consumer-r");
         TestPki.Issued other = pki.node("consumer-b");
-        RecordingObserver revokedStream = stream(channel(revoked));
+        ManagedChannel revokedChannel = channel(revoked);
+        RecordingObserver revokedStream = stream(revokedChannel);
         RecordingObserver otherStream = stream(channel(other));
         await().atMost(Duration.ofSeconds(5))
                 .until(() -> revokedStream.messages.get() > 0 && otherStream.messages.get() > 0);
@@ -187,6 +192,12 @@ class GRPCServerRevocationTest {
         int otherBefore = otherStream.messages.get();
         await().atMost(Duration.ofSeconds(3)).until(() -> otherStream.messages.get() > otherBefore);
         assertEquals(null, otherStream.error.get(), "other consumer unaffected");
+
+        // the revoked consumer never shuts its channel down: the server closes the now idle connection
+        assertEquals(ConnectivityState.READY, revokedChannel.getState(false), "connection still open after the calls");
+        await().atMost(Duration.ofSeconds(MAX_CONNECTION_IDLE_SECONDS + 3))
+                .until(() -> revokedChannel.getState(false) != ConnectivityState.READY);
+        assertEquals(ConnectivityState.READY, channels.get(1).getState(false), "streaming consumer kept");
 
         ManagedChannel reconnect = channel(revoked);
         assertThrows(StatusRuntimeException.class, () -> firstMessage(reconnect));
