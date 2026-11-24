@@ -20,8 +20,17 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.verify;
 
+import io.grpc.CallOptions;
+import io.grpc.Channel;
+import io.grpc.ClientCall;
+import io.grpc.ClientInterceptor;
+import io.grpc.Context;
+import io.grpc.ForwardingClientCall;
 import io.grpc.ManagedChannel;
+import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
 import io.grpc.Server;
+import io.grpc.StatusRuntimeException;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import io.grpc.netty.shaded.io.netty.handler.ssl.ClientAuth;
@@ -48,6 +57,7 @@ import org.mockito.MockedStatic;
 import uk.gov.dbt.ndtp.federator.client.grpc.revocation.RevocationCheckedChannels;
 import uk.gov.dbt.ndtp.federator.common.revocation.RevocationEngine;
 import uk.gov.dbt.ndtp.federator.common.revocation.RevocationFailures;
+import uk.gov.dbt.ndtp.federator.common.revocation.RevocationTarget;
 import uk.gov.dbt.ndtp.federator.common.revocation.support.RevocationTestSupport;
 import uk.gov.dbt.ndtp.federator.common.revocation.support.StubOcspResponder;
 import uk.gov.dbt.ndtp.federator.common.revocation.support.StubOcspResponder.Answer;
@@ -194,6 +204,59 @@ class GRPCClientRevocationTest {
         }
         assertEquals(0, written.get());
         assertEquals(0, producer.service().calls.get(), "no request reached the producer");
+    }
+
+    @Test
+    void cachedRevokedStatusFailsTheNextCallOnAnOpenChannelBeforeAnythingIsSent() throws Exception {
+        Producer producer = producer("ProducerA", Integer.MAX_VALUE);
+        // stands where the auth interceptor is: it would add the bearer token when a call starts
+        AtomicInteger started = new AtomicInteger();
+        ManagedChannel channel = RevocationCheckedChannels.build(
+                "localhost", producer.server().getPort(), engine, builder -> builder.intercept(countStarts(started)));
+        channels.add(channel);
+        FederatorServiceGrpc.FederatorServiceBlockingStub grpcStub = FederatorServiceGrpc.newBlockingStub(channel);
+
+        // first call: the channel connects and the producer certificate is checked
+        Context.CancellableContext firstCall = Context.current().withCancellation();
+        firstCall.call(() -> grpcStub.getKafkaConsumer(request()).next());
+        firstCall.cancel(null);
+        await().atMost(Duration.ofSeconds(2))
+                .until(() -> producer.service().terminatedLoops.get() == 1);
+
+        // the producer certificate is revoked and the status is in the cache
+        stub.answer(producer.certificate().certificate().getSerialNumber(), Answer.REVOKED);
+        engine.checker().refresh(RevocationTarget.of(producer.certificate().certificate(), pki.caCertificate()));
+        int ocspRequests = stub.requests();
+
+        TopicRequest secondRequest = request();
+        StatusRuntimeException failure =
+                assertThrows(StatusRuntimeException.class, () -> grpcStub.getKafkaConsumer(secondRequest)
+                        .next());
+
+        assertEquals(
+                RevocationFailures.Kind.PEER_CERTIFICATE_REJECTED,
+                RevocationFailures.classify(failure).orElseThrow());
+        assertEquals(1, producer.service().calls.get(), "the second call never reached the producer");
+        assertEquals(1, started.get(), "the second call was not started, so no headers or token were sent");
+        assertEquals(ocspRequests, stub.requests(), "decided from the cache");
+        assertTrue(channel.isShutdown(), "channel to the revoked producer shut down");
+    }
+
+    /** Counts the calls that are started on the channel past the revocation interceptor. */
+    private static ClientInterceptor countStarts(AtomicInteger started) {
+        return new ClientInterceptor() {
+            @Override
+            public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+                    MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
+                return new ForwardingClientCall.SimpleForwardingClientCall<>(next.newCall(method, callOptions)) {
+                    @Override
+                    public void start(Listener<RespT> responseListener, Metadata headers) {
+                        started.incrementAndGet();
+                        super.start(responseListener, headers);
+                    }
+                };
+            }
+        };
     }
 
     @Test

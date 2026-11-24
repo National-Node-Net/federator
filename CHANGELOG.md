@@ -18,7 +18,8 @@
   Configurable cache (`memory` or `redis`, TTL at most 600 s), fail-closed by default, own resilience
   settings (`revocation.ocsp.resilience.*`). See `docs/certificate-revocation.md`.
 - Consumer: OCSP revocation checks of producer server certificates in the TLS handshake, on every gRPC call and
-  when the cached status of a producer with open calls expires. Calls to a revoked or unknown producer are
+  when the cached status of a producer with open calls expires. A call to a producer already known to be revoked
+  is not started, so neither the request nor the bearer token is sent. Calls to a revoked or unknown producer are
   cancelled and the channel shut down; data received after the rejection is not written to Kafka or file storage.
   Such jobs fail with `PRODUCER_CERTIFICATE_REVOKED` (or `CONSUMER_CERTIFICATE_REJECTED` when the producer rejects
   the consumer's own certificate) and are not retried. New keys `client.tlsEnabled` and
