@@ -18,6 +18,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import lombok.extern.slf4j.Slf4j;
 import uk.gov.dbt.ndtp.federator.common.revocation.CertificateKey;
@@ -50,9 +51,31 @@ public class ActiveCallRegistry implements AutoCloseable {
         private final RevocationTarget peer;
         private final Set<RevocableServerCall<?, ?>> calls = ConcurrentHashMap.newKeySet();
         private ScheduledFuture<?> recheck;
+        private boolean removed;
 
         private Tracked(RevocationTarget peer) {
             this.peer = peer;
+        }
+
+        /** Schedules the first re-check, unless one exists or the entry was removed meanwhile. */
+        private synchronized void scheduleFirst(Supplier<ScheduledFuture<?>> scheduling) {
+            if (!removed && recheck == null) {
+                recheck = scheduling.get();
+            }
+        }
+
+        private synchronized void reschedule(Supplier<ScheduledFuture<?>> scheduling) {
+            if (!removed) {
+                recheck = scheduling.get();
+            }
+        }
+
+        /** Marks the entry as removed from the map and cancels its pending re-check. */
+        private synchronized void remove() {
+            removed = true;
+            if (recheck != null) {
+                recheck.cancel(false);
+            }
         }
     }
 
@@ -91,15 +114,16 @@ public class ActiveCallRegistry implements AutoCloseable {
      * @param recheckAt when the certificate must be checked again (expiry of its status entry)
      */
     public void register(RevocationTarget peer, RevocableServerCall<?, ?> call, Instant recheckAt) {
-        call.onClosed(() -> unregister(peer.key(), call));
-        tracked.compute(peer.key(), (key, existing) -> {
-            Tracked entry = existing != null ? existing : new Tracked(peer);
-            entry.calls.add(call);
-            if (entry.recheck == null) {
-                entry.recheck = schedule(key, recheckAt);
-            }
-            return entry;
+        CertificateKey key = peer.key();
+        call.onClosed(() -> unregister(key, call));
+        Tracked entry = tracked.compute(key, (k, existing) -> {
+            Tracked current = existing != null ? existing : new Tracked(peer);
+            current.calls.add(call);
+            return current;
         });
+        // Scheduled after compute: until compute returns the map does not show a new entry, so a re-check due at once
+        // could run, find nothing and never be scheduled again.
+        entry.scheduleFirst(() -> schedule(key, recheckAt));
     }
 
     /**
@@ -109,9 +133,7 @@ public class ActiveCallRegistry implements AutoCloseable {
         tracked.computeIfPresent(key, (k, entry) -> {
             entry.calls.remove(call);
             if (entry.calls.isEmpty()) {
-                if (entry.recheck != null) {
-                    entry.recheck.cancel(false);
-                }
+                entry.remove();
                 return null;
             }
             return entry;
@@ -156,10 +178,10 @@ public class ActiveCallRegistry implements AutoCloseable {
     }
 
     private void reschedule(CertificateKey key, Instant at) {
-        tracked.computeIfPresent(key, (k, entry) -> {
-            entry.recheck = schedule(k, at);
-            return entry;
-        });
+        Tracked entry = tracked.get(key);
+        if (entry != null) {
+            entry.reschedule(() -> schedule(key, at));
+        }
     }
 
     private void terminateAll(CertificateKey key, RevocationVerdict verdict, String detail) {
@@ -167,6 +189,7 @@ public class ActiveCallRegistry implements AutoCloseable {
         if (entry == null) {
             return;
         }
+        entry.remove();
         Status grpcStatus = verdict.rejection();
         List<RevocableServerCall<?, ?>> calls = List.copyOf(entry.calls);
         Set<String> connections =

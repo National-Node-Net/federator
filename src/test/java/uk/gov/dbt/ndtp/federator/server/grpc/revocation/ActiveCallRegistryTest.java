@@ -26,7 +26,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLSession;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -215,5 +217,34 @@ class ActiveCallRegistryTest {
         org.awaitility.Awaitility.await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> verify(call)
                 .close(any(Status.class), any(Metadata.class)));
         assertFalse(registry.openCalls(peer.key()) > 0);
+    }
+
+    @Test
+    void recheckDueAtRegistrationIsNotLostWhenItRunsAtOnce() {
+        // runs a task due now on the registering thread, the worst case of a scheduler thread that starts at once
+        ScheduledExecutorService immediate = new ScheduledThreadPoolExecutor(1) {
+            @Override
+            public ScheduledFuture<?> schedule(Runnable command, long delay, TimeUnit unit) {
+                if (delay > 0) {
+                    return super.schedule(command, delay, unit);
+                }
+                command.run();
+                return super.schedule(() -> {}, 0, unit);
+            }
+        };
+        try {
+            ActiveCallRegistry registry =
+                    new ActiveCallRegistry(checker, new RevocationAudit("producer", meters), true, immediate);
+            RevocationTarget peer = peer("consumer-a");
+            ServerCall<Object, Object> call = serverCall();
+            when(checker.refresh(any())).thenReturn(status(CertificateStatus.REVOKED));
+
+            registry.register(peer, new RevocableServerCall<>(call, "c", null), NOW);
+
+            verify(call).close(any(Status.class), any(Metadata.class));
+            assertEquals(0, registry.openCalls(peer.key()));
+        } finally {
+            immediate.shutdownNow();
+        }
     }
 }
