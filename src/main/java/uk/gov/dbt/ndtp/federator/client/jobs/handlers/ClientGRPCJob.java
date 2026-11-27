@@ -5,9 +5,11 @@ import java.util.function.Supplier;
 import java.util.function.ToLongBiFunction;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import uk.gov.dbt.ndtp.federator.WrappedGRPCClient;
 import uk.gov.dbt.ndtp.federator.client.connection.ConnectionProperties;
 import uk.gov.dbt.ndtp.federator.client.grpc.GRPCTopicClient;
+import uk.gov.dbt.ndtp.federator.client.grpc.revocation.RevocationGuard;
 import uk.gov.dbt.ndtp.federator.client.jobs.Job;
 import uk.gov.dbt.ndtp.federator.client.jobs.params.ClientGRPCJobParams;
 import uk.gov.dbt.ndtp.federator.client.jobs.params.JobParams;
@@ -60,11 +62,16 @@ public class ClientGRPCJob implements Job {
                 connectionProperties.serverHost(),
                 request.getTopic());
 
-        try (WrappedGRPCClient grpcClient = clientFactory.apply(connectionProperties, prefix)) {
+        try (MDC.MDCCloseable ignored = MDC.putCloseable(
+                        RevocationGuard.MDC_JOB_ID, java.util.Objects.requireNonNullElse(request.getJobId(), "-"));
+                WrappedGRPCClient grpcClient = clientFactory.apply(connectionProperties, prefix)) {
             long offset = offsetProvider.applyAsLong(grpcClient.getRedisPrefix(), request.getTopic());
             grpcClient.processTopic(request.getTopic(), offset);
         } catch (Exception e) {
-            throw new ClientGRPCJobException("Failed to process topic '" + request.getTopic() + "' via GRPC client", e);
+            throw RevocationJobFailures.translate(e, connectionProperties, request.getTopic(), request.getJobId())
+                    .<RuntimeException>map(rejected -> rejected)
+                    .orElseGet(() -> new ClientGRPCJobException(
+                            "Failed to process topic '" + request.getTopic() + "' via GRPC client", e));
         }
     }
 

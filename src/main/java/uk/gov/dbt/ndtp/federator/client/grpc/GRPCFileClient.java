@@ -8,6 +8,7 @@ import java.util.Iterator;
 import lombok.extern.slf4j.Slf4j;
 import uk.gov.dbt.ndtp.federator.client.connection.ConnectionProperties;
 import uk.gov.dbt.ndtp.federator.client.grpc.file.FileChunkAssembler;
+import uk.gov.dbt.ndtp.federator.client.grpc.revocation.RevocationGuard;
 import uk.gov.dbt.ndtp.federator.common.utils.RedisUtil;
 import uk.gov.dbt.ndtp.federator.exceptions.FileAssemblyException;
 import uk.gov.dbt.ndtp.grpc.FileChunk;
@@ -135,13 +136,18 @@ public class GRPCFileClient extends GRPCAbstractClient {
      * @param assembler file chunk assembler for file reconstruction
      */
     private void processFileStream(String topic, long offset, FileStreamRequest request, FileChunkAssembler assembler) {
-        Iterator<FileStreamEvent> events = getStub().getFilesStream(request);
+        // Marked by the revocation checks when the producer's certificate is rejected; nothing is stored after that.
+        RevocationGuard guard = new RevocationGuard(serverName, topic);
+        Iterator<FileStreamEvent> events =
+                RevocationGuard.withGuard(guard, () -> getStub().getFilesStream(request));
         long lastSeq = offset;
 
         while (events.hasNext()) {
             FileStreamEvent event = events.next();
+            guard.ensureAccepted();
             lastSeq = handleStreamEvent(topic, event, assembler, lastSeq);
         }
+        guard.ensureAccepted();
 
         log.info("Finished processing stream for topic '{}' at sequence id {}", topic, lastSeq);
     }

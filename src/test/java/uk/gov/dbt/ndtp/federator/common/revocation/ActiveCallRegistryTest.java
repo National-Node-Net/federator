@@ -4,7 +4,7 @@
  * attributed to the UK's Department for Business, Innovation, Science and Trade (BIST) as the governing entity.
  */
 
-package uk.gov.dbt.ndtp.federator.server.grpc.revocation;
+package uk.gov.dbt.ndtp.federator.common.revocation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -34,14 +34,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import uk.gov.dbt.ndtp.federator.common.revocation.CertificateStatus;
-import uk.gov.dbt.ndtp.federator.common.revocation.CertificateStatusEntry;
-import uk.gov.dbt.ndtp.federator.common.revocation.OcspResponderException;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationAudit;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationChecker;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationDecision;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationTarget;
 import uk.gov.dbt.ndtp.federator.common.revocation.support.TestPki;
+import uk.gov.dbt.ndtp.federator.server.grpc.revocation.RevocableServerCall;
 
 class ActiveCallRegistryTest {
 

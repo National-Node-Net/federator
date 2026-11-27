@@ -208,4 +208,22 @@ public final class TestPki {
             throw new IllegalStateException(e);
         }
     }
+
+    /** Writes a PKCS12 file (password {@code changeit}) with the certificate, its key and the CA. */
+    public java.nio.file.Path writeP12(Issued issued, java.nio.file.Path file) {
+        try {
+            char[] password = "changeit".toCharArray();
+            KeyStore store = KeyStore.getInstance("PKCS12");
+            store.load(null, null);
+            store.setKeyEntry("key", issued.keyPair().getPrivate(), password, new X509Certificate[] {
+                issued.certificate(), ca.certificate()
+            });
+            try (var out = java.nio.file.Files.newOutputStream(file)) {
+                store.store(out, password);
+            }
+            return file;
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
 }

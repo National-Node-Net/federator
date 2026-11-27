@@ -6,28 +6,17 @@
 
 package uk.gov.dbt.ndtp.federator.server.grpc.revocation;
 
-import io.github.resilience4j.micrometer.tagged.TaggedCircuitBreakerMetrics;
 import io.micrometer.core.instrument.MeterRegistry;
 import java.net.http.HttpClient;
-import java.time.Clock;
-import java.util.List;
 import java.util.Optional;
 import java.util.function.Supplier;
 import javax.net.ssl.X509ExtendedTrustManager;
 import lombok.extern.slf4j.Slf4j;
-import uk.gov.dbt.ndtp.federator.common.revocation.CaffeineRevocationStatusCache;
-import uk.gov.dbt.ndtp.federator.common.revocation.OcspClient;
-import uk.gov.dbt.ndtp.federator.common.revocation.OcspResponseVerifier;
-import uk.gov.dbt.ndtp.federator.common.revocation.OcspTokenProvider;
+import uk.gov.dbt.ndtp.federator.common.revocation.ActiveCallRegistry;
 import uk.gov.dbt.ndtp.federator.common.revocation.OcspTrustManager;
-import uk.gov.dbt.ndtp.federator.common.revocation.RedisRevocationStatusCache;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationAudit;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationChecker;
+import uk.gov.dbt.ndtp.federator.common.revocation.RevocationEngine;
 import uk.gov.dbt.ndtp.federator.common.revocation.RevocationProperties;
-import uk.gov.dbt.ndtp.federator.common.revocation.RevocationStatusCache;
 import uk.gov.dbt.ndtp.federator.common.service.idp.IdpTokenService;
-import uk.gov.dbt.ndtp.federator.common.utils.RedisUtil;
-import uk.gov.dbt.ndtp.federator.common.utils.ResilienceSupport;
 
 /**
  * Decides at startup whether the producer checks consumer certificates for revocation, and builds the components.
@@ -49,19 +38,19 @@ public final class ServerRevocationSetup {
      *
      * @param trustManager trust manager for the server SSL context (handshake check)
      * @param interceptor  server interceptor (per-call check); register it last
-     * @param registry     open calls and their re-checks
+     * @param engine       the shared components (checker, cache, open calls and their re-checks)
      */
     public record Components(
-            OcspTrustManager trustManager,
-            ServerRevocationInterceptor interceptor,
-            ActiveCallRegistry registry,
-            OcspTokenProvider tokenProvider)
+            OcspTrustManager trustManager, ServerRevocationInterceptor interceptor, RevocationEngine engine)
             implements AutoCloseable {
+
+        public ActiveCallRegistry registry() {
+            return engine.registry();
+        }
 
         @Override
         public void close() {
-            registry.close();
-            tokenProvider.close();
+            engine.close();
         }
     }
 
@@ -90,53 +79,13 @@ public final class ServerRevocationSetup {
                     RevocationProperties.ENFORCEMENT_ENABLED);
             return Optional.empty();
         }
-        RevocationProperties properties = RevocationProperties.load();
-        Clock clock = Clock.systemUTC();
-        RevocationAudit audit = new RevocationAudit(COMPONENT, meters);
-
-        ResilienceSupport.Policy policy = new ResilienceSupport.Policy(
-                RevocationProperties.RESILIENCE_PREFIX, RevocationProperties.RESILIENCE_DEFAULTS);
-        TaggedCircuitBreakerMetrics.ofCircuitBreakerRegistry(policy.circuitBreakerRegistry())
-                .bindTo(meters);
-        OcspTokenProvider tokenProvider = new OcspTokenProvider(tokenService, clock);
-        OcspResponseVerifier verifier = new OcspResponseVerifier(
-                properties.requireNonce(), properties.requireSignerEku(), properties.signerCommonName(), clock);
-        OcspClient ocspClient = new OcspClient(httpClient.get(), tokenProvider, verifier, policy, audit, properties);
-        RevocationStatusCache cache =
-                switch (properties.cacheType()) {
-                    case MEMORY ->
-                        new CaffeineRevocationStatusCache(
-                                properties.cacheMaxEntries(), properties.cacheTtl(), clock, meters);
-                    case REDIS -> new RedisRevocationStatusCache(RedisUtil.getInstance(), properties.cacheTtl(), clock);
-                };
-        RevocationChecker checker = new RevocationChecker(ocspClient, cache, audit, properties.cacheTtl(), clock);
-        ActiveCallRegistry registry = new ActiveCallRegistry(checker, audit, properties.failClosed());
-        OcspTrustManager trustManager = new OcspTrustManager(pkix, checker, audit, properties.failClosed());
+        RevocationEngine engine = RevocationEngine.build(COMPONENT, pkix, httpClient.get(), tokenService, meters);
         ServerRevocationInterceptor interceptor = new ServerRevocationInterceptor(
-                checker, registry, audit, List.of(pkix.getAcceptedIssuers()), properties.failClosed());
-
-        log.info(
-                "Certificate revocation checks enabled: ocsp={} cache={} ttl={}s failClosed={} requireNonce={}"
-                        + " requireSignerEku={} budget={}ms",
-                properties.ocspUri(),
-                properties.cacheType(),
-                properties.cacheTtl().toSeconds(),
-                properties.failClosed(),
-                properties.requireNonce(),
-                properties.requireSignerEku(),
-                properties.checkBudget().toMillis());
-        if (!properties.requireSignerEku()) {
-            log.warn(
-                    "{}=false: OCSP signer certificates without id-kp-OCSPSigning are accepted when their CN is '{}'."
-                            + " This is transitional.",
-                    RevocationProperties.OCSP_REQUIRE_SIGNER_EKU,
-                    properties.signerCommonName());
-        }
-        if (!properties.failClosed()) {
-            log.warn(
-                    "{}=false: consumers are accepted when their certificate status is unavailable",
-                    RevocationProperties.FAIL_CLOSED);
-        }
-        return Optional.of(new Components(trustManager, interceptor, registry, tokenProvider));
+                engine.checker(),
+                engine.registry(),
+                engine.audit(),
+                engine.trustedIssuers(),
+                engine.properties().failClosed());
+        return Optional.of(new Components(engine.trustManager(), interceptor, engine));
     }
 }

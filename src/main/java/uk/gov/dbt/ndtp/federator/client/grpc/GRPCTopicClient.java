@@ -45,6 +45,7 @@ import org.apache.kafka.common.utils.Bytes;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.gov.dbt.ndtp.federator.client.connection.ConnectionProperties;
+import uk.gov.dbt.ndtp.federator.client.grpc.revocation.RevocationGuard;
 import uk.gov.dbt.ndtp.federator.common.utils.KafkaUtil;
 import uk.gov.dbt.ndtp.federator.common.utils.PropertyUtil;
 import uk.gov.dbt.ndtp.federator.common.utils.RedisUtil;
@@ -174,9 +175,13 @@ public class GRPCTopicClient extends GRPCAbstractClient {
 
         ExecutorService threadExecutor = null;
         CancellableContext context = null;
+        // Marked by the revocation checks when the producer's certificate is rejected; nothing is written after that.
+        RevocationGuard guard = new RevocationGuard(serverName, req.getTopic());
         try {
             threadExecutor = Executors.newSingleThreadExecutor();
-            context = Context.current().withCancellation();
+            context = Context.current()
+                    .withValue(RevocationGuard.CONTEXT_KEY, guard)
+                    .withCancellation();
             Iterator<KafkaByteBatch> iterator = context.call(() -> getStub().getKafkaConsumer(req));
 
             while (true) {
@@ -185,12 +190,13 @@ public class GRPCTopicClient extends GRPCAbstractClient {
                 // To avoid blocking indefinitely (as idle timeouts will not be reached), we use a Future with a timeout
                 // to limit how long we wait for a message.
                 Future<KafkaByteBatch> futureNext = threadExecutor.submit(context.wrap(iterator::next));
-                KafkaByteBatch batch = getNextBatch(futureNext, idleSeconds, context);
+                KafkaByteBatch batch = getNextBatch(futureNext, idleSeconds, context, guard);
                 if (batch == null) {
                     break;
                 }
 
                 LOGGER.debug("Consuming message: {}, {} : {}", batch.getTopic(), batch.getOffset(), batch.getValue());
+                guard.ensureAccepted();
                 sendMessage(sink, batch);
 
                 // The persisted offset here is read when a new job starts.
@@ -224,12 +230,14 @@ public class GRPCTopicClient extends GRPCAbstractClient {
      * @param futureNext The future to get the next batch from.
      * @param idleSeconds The number of seconds to wait before timing out.
      * @param context The cancellable context to cancel if the timeout is reached.
+     * @param guard The revocation guard of the call; a call cancelled because the producer's certificate was rejected
+     *              is a failure, not the end of the stream.
      * @return The next batch, or null if the timeout is reached.
      * @throws Exception If an error occurs while getting the next batch.
      */
     @SneakyThrows
     private KafkaByteBatch getNextBatch(
-            Future<KafkaByteBatch> futureNext, long idleSeconds, CancellableContext context) {
+            Future<KafkaByteBatch> futureNext, long idleSeconds, CancellableContext context, RevocationGuard guard) {
 
         // To avoid blocking indefinitely (as idle timeouts will not be reached),
         // use a Future with a timeout to limit how long we wait for a message.
@@ -240,6 +248,7 @@ public class GRPCTopicClient extends GRPCAbstractClient {
             LOGGER.info("No messages received for {}s. Closing consumer.", idleSeconds);
             return null;
         } catch (ExecutionException ee) {
+            guard.ensureAccepted(); // cancelled for revocation: fail the job instead of ending the stream normally
             Throwable c = ee.getCause();
             if (c instanceof StatusRuntimeException sre) {
                 Status.Code code = sre.getStatus().getCode();

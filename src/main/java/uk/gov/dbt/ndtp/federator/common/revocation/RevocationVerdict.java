@@ -7,6 +7,7 @@
 package uk.gov.dbt.ndtp.federator.common.revocation;
 
 import io.grpc.Status;
+import java.io.Serializable;
 
 /**
  * What to do with a peer, given a revocation decision: the single place where the enforcement policy is applied.
@@ -20,7 +21,7 @@ import io.grpc.Status;
  * @param status  {@code good}, {@code revoked}, {@code unknown} or {@code unavailable}
  * @param cause   {@code none} for an allowed good certificate, otherwise the status
  */
-public record RevocationVerdict(boolean allowed, String status, String cause) {
+public record RevocationVerdict(boolean allowed, String status, String cause) implements Serializable {
 
     public static RevocationVerdict of(RevocationDecision decision, boolean failClosed) {
         String status = decision.statusTag();

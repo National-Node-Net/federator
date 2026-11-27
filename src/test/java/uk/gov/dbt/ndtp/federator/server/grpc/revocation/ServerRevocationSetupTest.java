@@ -105,8 +105,16 @@ class ServerRevocationSetupTest {
     void transitionalSignerModeIsLogged() {
         RevocationTestSupport.initProperties(
                 tempDir, Map.of("management.node.base.url", "https://mn", "revocation.ocsp.requireSignerEku", "false"));
-        create(true, new AtomicBoolean()).ifPresent(ServerRevocationSetup.Components::close);
-        assertTrue(warned("transitional"));
+        String engineLogger = uk.gov.dbt.ndtp.federator.common.revocation.RevocationEngine.class.getName();
+        ListAppender<ILoggingEvent> engineLogs = RevocationTestSupport.captureLogs(engineLogger);
+        try {
+            create(true, new AtomicBoolean()).ifPresent(ServerRevocationSetup.Components::close);
+            assertTrue(engineLogs.list.stream()
+                    .anyMatch(e -> e.getLevel() == Level.WARN
+                            && e.getFormattedMessage().contains("transitional")));
+        } finally {
+            RevocationTestSupport.detach(engineLogger, engineLogs);
+        }
     }
 
     @Test

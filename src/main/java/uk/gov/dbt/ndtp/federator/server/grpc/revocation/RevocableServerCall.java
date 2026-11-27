@@ -13,6 +13,8 @@ import io.grpc.Status;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.net.ssl.SSLSession;
+import uk.gov.dbt.ndtp.federator.common.revocation.RevocationVerdict;
+import uk.gov.dbt.ndtp.federator.common.revocation.TerminableCall;
 
 /**
  * Server call that the revocation re-check can terminate from another thread.
@@ -22,8 +24,8 @@ import javax.net.ssl.SSLSession;
  * {@link #sendMessage(Object)} throws {@code CANCELLED}, which stops the streaming conductor: its loop ends on
  * {@code isCancelled()} and {@code LimitedServerCallStreamObserver.onNext} fails, so no further data is sent.
  */
-public final class RevocableServerCall<ReqT, RespT>
-        extends ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT> {
+public final class RevocableServerCall<ReqT, RespT> extends ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>
+        implements TerminableCall {
 
     private final Object lock = new Object();
     private final AtomicBoolean closed = new AtomicBoolean(false);
@@ -39,12 +41,20 @@ public final class RevocableServerCall<ReqT, RespT>
     }
 
     /** Runs once, after the call is closed by the application or terminated. */
-    void onClosed(Runnable callback) {
+    @Override
+    public void onClosed(Runnable callback) {
         this.onClosed.set(callback);
     }
 
+    @Override
     public String connectionId() {
         return connectionId;
+    }
+
+    /** Closes the call with the verdict's status ({@code UNAUTHENTICATED} or {@code UNAVAILABLE}). */
+    @Override
+    public boolean terminate(RevocationVerdict verdict) {
+        return terminate(verdict.rejection());
     }
 
     /**

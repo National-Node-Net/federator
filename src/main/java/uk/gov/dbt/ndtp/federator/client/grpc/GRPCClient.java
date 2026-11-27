@@ -32,11 +32,15 @@ import io.grpc.ChannelCredentials;
 import io.grpc.Grpc;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.gov.dbt.ndtp.federator.client.grpc.interceptor.AuthClientInterceptor;
 import uk.gov.dbt.ndtp.federator.client.grpc.interceptor.CustomClientInterceptor;
+import uk.gov.dbt.ndtp.federator.client.grpc.revocation.ClientRevocation;
+import uk.gov.dbt.ndtp.federator.client.grpc.revocation.RevocationCheckedChannels;
+import uk.gov.dbt.ndtp.federator.common.revocation.RevocationEngine;
 import uk.gov.dbt.ndtp.federator.common.service.idp.IdpTokenService;
 import uk.gov.dbt.ndtp.federator.common.utils.GRPCUtils;
 import uk.gov.dbt.ndtp.federator.common.utils.PropertyUtil;
@@ -54,10 +58,20 @@ public interface GRPCClient extends AutoCloseable {
     String THIRTY = "30";
 
     default ManagedChannel generateChannel(String host, int port, boolean ismTLSEnabled) {
-        if (ismTLSEnabled) {
+        Optional<RevocationEngine> revocation = ClientRevocation.engine();
+        if (ismTLSEnabled && revocation.isPresent()) {
+            LOGGER.info("Using MTLS with revocation checks of the producer certificate for GRPC connection");
+            return RevocationCheckedChannels.build(host, port, revocation.get(), this::configureChannelBuilder);
+        } else if (ismTLSEnabled) {
             LOGGER.info("Using MTLS for GRPC connection");
             return generateSecureChannel(host, port, generateChannelCredentials());
         } else {
+            if (revocation.isPresent()) {
+                LOGGER.warn(
+                        "Producer {}:{} is configured without TLS; its certificate cannot be checked for revocation",
+                        host,
+                        port);
+            }
             LOGGER.info("Using plaintext for GRPC connection");
             return generateChannel(host, port);
         }
