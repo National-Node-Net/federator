@@ -41,7 +41,7 @@
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <javadoc.failOnWarnings>true</javadoc.failOnWarnings>
     <plugin.build-helper-maven>3.6.0</plugin.build-helper-maven>
-    <plugin.cyclonedx>2.9.1</plugin.cyclonedx>
+    <plugin.cyclonedx>2.9.3</plugin.cyclonedx>
     <plugin.exec-maven>3.6.4</plugin.exec-maven>
     <plugin.jacoco-maven>0.8.13</plugin.jacoco-maven>
     <plugin.javadoc>3.12.0</plugin.javadoc>
