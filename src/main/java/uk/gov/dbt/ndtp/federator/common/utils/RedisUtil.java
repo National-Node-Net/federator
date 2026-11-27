@@ -205,9 +205,24 @@ public class RedisUtil {
      * @return true if Redis SET returned "OK"
      */
     public <T> boolean setValue(String key, T value, Long ttlSeconds) {
+        return setValue(key, value, ttlSeconds, true);
+    }
+
+    /**
+     * Stores a value in Redis at the given key with a TTL, optionally without encryption.
+     *
+     * @param key         the Redis key
+     * @param value       the object to store
+     * @param ttlSeconds  time-to-live in seconds; if null or &le; 0 then no TTL
+     * @param encryptIfConfigured  encrypt with {@code redis.aes.key} when it is set; false always stores plain JSON
+     *                             (for values that are not secret, e.g. certificate revocation status)
+     * @param <T>         type of the value
+     * @return true if Redis SET returned "OK"
+     */
+    public <T> boolean setValue(String key, T value, Long ttlSeconds, boolean encryptIfConfigured) {
         try {
             key = getPrefixedKey(key);
-            boolean encrypt = redisAesKeyValueIsSet();
+            boolean encrypt = encryptIfConfigured && redisAesKeyValueIsSet();
             String json = ObjectMapperUtil.getInstance().writeValueAsString(value);
             String toWrite = encrypt ? AesCryptoUtil.encrypt(json, redisAesKeyValue) : json;
 

@@ -35,6 +35,23 @@ This document describes the configuration properties for the Federator server, i
 | `server.keepAliveTime`            | Keep-alive time for the server (ms)                                                               |
 | `consumer.inactivity.timeout`     | Duration of inactivity (ISO-8601, e.g. PT30S) before the server disconnects the consumer |
 
+### Certificate revocation, connection lifecycle and metrics
+
+With `server.mtlsEnabled=true`, consumer client certificates are checked against the Management Node OCSP API in the TLS handshake, on every call and while calls are open. See [Certificate Revocation](certificate-revocation.md) for the behaviour and the full list of `revocation.*` keys.
+
+| Property                               | Description                                                                                     |
+|----------------------------------------|-------------------------------------------------------------------------------------------------|
+| `revocation.enforcement.enabled`       | Master switch for revocation checks (default `true`)                                            |
+| `revocation.enforcement.failClosed`    | Reject consumers when no valid status is available (default `true`)                             |
+| `revocation.ocsp.path`                 | OCSP path appended to `management.node.base.url` (default `/api/v1/certificate/ocsp`)            |
+| `revocation.cache.type`                | `memory` (default) or `redis`                                                                   |
+| `revocation.cache.ttl.seconds`         | Status cache TTL, 1–600 (default `300`); the longest time a revoked consumer keeps an open call |
+| `server.maxConnectionAge.seconds`      | GOAWAY after this connection age (default `1800` while revocation checks are active)            |
+| `server.maxConnectionAgeGrace.seconds` | Optional: end calls still running this long after GOAWAY (not set = never)                      |
+| `server.maxConnectionIdle.seconds`     | Close connections without calls after this idle time (default `60` while revocation checks are active) |
+| `server.tlsSessionTimeout.seconds`     | TLS session resumption limit (default `300`)                                                    |
+| `metrics.enabled` / `metrics.port`     | Prometheus endpoint `GET /metrics` (default `true` / `9464`)                                    |
+
 **Note:**
 - The `consumer.inactivity.timeout` property controls how long the server will wait for messages before disconnecting a consumer due to inactivity. If no messages are received within this duration, the consumer connection is closed automatically. This helps free up resources and ensures efficient operation.
 

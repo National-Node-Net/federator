@@ -9,6 +9,19 @@
 
 ## Unreleased
 
+### Added
+
+- Producer: OCSP revocation checks of consumer client certificates against the Management Node OCSP API
+  (`/api/v1/certificate/ocsp`) in the TLS handshake, on every gRPC call and when the cached status of a
+  consumer with open calls expires. Revoked or unknown consumers are rejected, their open calls closed and
+  their connections closed once idle.
+  Configurable cache (`memory` or `redis`, TTL at most 600 s), fail-closed by default, own resilience
+  settings (`revocation.ocsp.resilience.*`). See `docs/certificate-revocation.md`.
+- Prometheus metrics endpoint (`metrics.enabled`, `metrics.port`, default `9464`).
+- `server.maxConnectionAge.seconds`, `server.maxConnectionAgeGrace.seconds`, `server.maxConnectionIdle.seconds`
+  and `server.tlsSessionTimeout.seconds`; with revocation checks active, `maxConnectionAge` defaults to 1800 s
+  and `maxConnectionIdle` to 60 s.
+
 ### Changed
 
 - Identity Provider (`idp.*`) properties are now defined directly in
@@ -31,6 +44,12 @@
 - Docker Compose `.env` `VERSION` now matches the project version, and
   `docker-compose-grpc.yml` uses the locally built images like the other
   compose files.
+- The gRPC server is built with `NettyServerBuilder` and a Netty SSL context (JDK provider) instead of
+  `TlsServerCredentials`.
+- `ResilienceSupport` supports separate policies per property prefix; `management.node.resilience.*` is unchanged.
+- Bouncy Castle (`1.85`) and Caffeine are now runtime dependencies.
+- IdP token requests time out after 30 s.
+- A failure to create the gRPC server (e.g. a missing keystore) now stops the process with exit code 1.
 
 ### Deprecated
 
