@@ -25,7 +25,7 @@
       
       
       <link rel="icon" href="../assets/android-chrome-512x512-1-150x150.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.1">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.2">
     
     
       
@@ -357,6 +357,33 @@
   
   
     <li class="md-nav__item">
+      <a href="../certificate-revocation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Certificate Revocation (Producer)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../client-configuration/" class="md-nav__link">
         
   
@@ -555,6 +582,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Server Properties">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#certificate-revocation-connection-lifecycle-and-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Certificate revocation, connection lifecycle and metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -712,10 +756,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_11" >
         
           
-          <label class="md-nav__link" for="__nav_10" id="__nav_10_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_11" id="__nav_11_label" tabindex="0">
             
   
   
@@ -733,8 +777,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -835,6 +879,23 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Server Properties">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#certificate-revocation-connection-lifecycle-and-metrics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Certificate revocation, connection lifecycle and metrics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -1069,6 +1130,58 @@
 <tr>
 <td><code>consumer.inactivity.timeout</code></td>
 <td>Duration of inactivity (ISO-8601, e.g. PT30S) before the server disconnects the consumer</td>
+</tr>
+</tbody>
+</table>
+<h3 id="certificate-revocation-connection-lifecycle-and-metrics">Certificate revocation, connection lifecycle and metrics</h3>
+<p>With <code>server.mtlsEnabled=true</code>, consumer client certificates are checked against the Management Node OCSP API in the TLS handshake, on every call and while calls are open. See <a href="../certificate-revocation/">Certificate Revocation</a> for the behaviour and the full list of <code>revocation.*</code> keys.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>revocation.enforcement.enabled</code></td>
+<td>Master switch for revocation checks (default <code>true</code>)</td>
+</tr>
+<tr>
+<td><code>revocation.enforcement.failClosed</code></td>
+<td>Reject consumers when no valid status is available (default <code>true</code>)</td>
+</tr>
+<tr>
+<td><code>revocation.ocsp.path</code></td>
+<td>OCSP path appended to <code>management.node.base.url</code> (default <code>/api/v1/certificate/ocsp</code>)</td>
+</tr>
+<tr>
+<td><code>revocation.cache.type</code></td>
+<td><code>memory</code> (default) or <code>redis</code></td>
+</tr>
+<tr>
+<td><code>revocation.cache.ttl.seconds</code></td>
+<td>Status cache TTL, 1–600 (default <code>300</code>); the longest time a revoked consumer keeps an open call</td>
+</tr>
+<tr>
+<td><code>server.maxConnectionAge.seconds</code></td>
+<td>GOAWAY after this connection age (default <code>1800</code> while revocation checks are active)</td>
+</tr>
+<tr>
+<td><code>server.maxConnectionAgeGrace.seconds</code></td>
+<td>Optional: end calls still running this long after GOAWAY (not set = never)</td>
+</tr>
+<tr>
+<td><code>server.maxConnectionIdle.seconds</code></td>
+<td>Close connections without calls after this idle time (default <code>60</code> while revocation checks are active)</td>
+</tr>
+<tr>
+<td><code>server.tlsSessionTimeout.seconds</code></td>
+<td>TLS session resumption limit (default <code>300</code>)</td>
+</tr>
+<tr>
+<td><code>metrics.enabled</code> / <code>metrics.port</code></td>
+<td>Prometheus endpoint <code>GET /metrics</code> (default <code>true</code> / <code>9464</code>)</td>
 </tr>
 </tbody>
 </table>
@@ -1307,7 +1420,7 @@ For full licensing terms, see <a href="../OGL_LICENSE.md">OGL_LICENSE.md</a>.</p
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="October 23, 2026 16:46:30 UTC">October 23, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 27, 2026 11:22:00 UTC">November 27, 2026</span>
   </span>
 
     
