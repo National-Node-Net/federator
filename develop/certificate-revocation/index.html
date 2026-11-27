@@ -29,7 +29,7 @@
     
     
       
-        <title>Certificate Revocation (Producer) - Federator Documentation</title>
+        <title>Certificate Revocation - Federator Documentation</title>
       
     
     
@@ -82,7 +82,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#certificate-revocation-producer" class="md-skip">
+        <a href="#certificate-revocation" class="md-skip">
           Skip to content
         </a>
       
@@ -121,7 +121,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Certificate Revocation (Producer)
+              Certificate Revocation
             
           </span>
         </div>
@@ -373,7 +373,7 @@
   <span class="md-ellipsis">
     
   
-    Certificate Revocation (Producer)
+    Certificate Revocation
   
 
     
@@ -391,7 +391,7 @@
   <span class="md-ellipsis">
     
   
-    Certificate Revocation (Producer)
+    Certificate Revocation
   
 
     
@@ -493,6 +493,17 @@
     <span class="md-ellipsis">
       
         Failure mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consumer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer
       
     </span>
   </a>
@@ -860,6 +871,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#consumer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#logging-and-metrics" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -909,13 +931,14 @@
   
 
 
-<h1 id="certificate-revocation-producer">Certificate Revocation (Producer)</h1>
+<h1 id="certificate-revocation">Certificate Revocation</h1>
 <p><strong>Repository:</strong> <code>federator</code><br />
-<strong>Description:</strong> <code>OCSP revocation checks of consumer client certificates on the producer</code></p>
+<strong>Description:</strong> <code>OCSP revocation checks of peer certificates on the producer and the consumer</code></p>
 <!-- SPDX-License-Identifier: OGL-UK-3.0 -->
 
 <hr />
 <h2 id="overview">Overview</h2>
+<p>Both sides of a federation connection check the other side's certificate against the Management Node OCSP API: the producer checks consumer client certificates (described first), and the consumer checks producer server certificates (see <a href="#consumer">Consumer</a>). Both use the same <code>revocation.*</code> settings, cache, OCSP client and response verification.</p>
 <p>With mTLS enabled, the producer (Federator server) checks that a consumer's client certificate has not been revoked:</p>
 <ol>
 <li><strong>TLS handshake.</strong> After the chain validates against <code>server.truststoreFilePath</code>, the consumer's certificate is checked. A revoked or unknown certificate fails the handshake.</li>
@@ -1025,11 +1048,78 @@
 <p>The OCSP query in the handshake blocks. The server uses the JDK SSL provider, so Netty runs certificate validation as a delegated task on the gRPC server executor rather than on the event loop.</p>
 <h2 id="failure-mode">Failure mode</h2>
 <p>Fail-closed has a cost: if the Management Node or Vault is unavailable for longer than the cache TTL, consumers are disconnected and cannot reconnect until the OCSP API is back. Every such decision is logged at ERROR with the <code>SECURITY_ALERT</code> marker and ends with <code>alert=SECURITY_ALERT</code>, so it can be alerted on with any log pattern. In an emergency, <code>revocation.enforcement.enabled=false</code> (restart required) turns the checks off.</p>
+<h2 id="consumer">Consumer</h2>
+<p>The consumer (Federator client) checks the producer's server certificate for every producer it connects to with TLS (<code>tls=true</code> in the Management Node configuration):</p>
+<ol>
+<li><strong>TLS handshake.</strong> After the chain validates against <code>client.truststoreFilePath</code>, the producer's certificate is checked. A revoked or unknown certificate fails the handshake before any request is sent. The consumer builds a new channel for every job run, so every run starts with this check (normally answered from the cache).</li>
+<li><strong>Each call.</strong> On a channel that has already connected, the producer's certificate is checked before a new call starts, normally from the cache. If it is rejected, the call is never started: nothing is sent to the producer, not even the request headers with the bearer token, and the channel is shut down. (The first call of a channel is covered by the handshake check, which runs before any request can be sent.) When the producer's response headers arrive, before any message of the call is processed, the certificate of that TLS session is checked again and the call is registered for re-checks.</li>
+<li><strong>During communication.</strong> When the cache entry of a producer with open calls expires, the status is checked again. If the certificate is revoked or unknown (or no status is available while failing closed), every call to that producer is cancelled and its channel shut down. Other producers are not affected.</li>
+</ol>
+<p>Data from a rejected producer is not processed: the call's guard is marked before the call is cancelled, and the stream loops check it before every write to Kafka or file storage and before saving an offset, so a message that was already received is discarded.</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Handshake</th>
+<th>Call</th>
+<th>Open calls at re-check</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>good</code></td>
+<td>accepted</td>
+<td>proceeds</td>
+<td>continue</td>
+</tr>
+<tr>
+<td><code>revoked</code> / <code>unknown</code></td>
+<td>fails</td>
+<td>cancelled</td>
+<td>all cancelled, channel shut down</td>
+</tr>
+<tr>
+<td>No valid status and no valid cache entry</td>
+<td>fails</td>
+<td>cancelled</td>
+<td>all cancelled, channel shut down (fail closed)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Jobs.</strong> A job that fails because the producer's certificate is revoked or unknown is marked failed with <code>PRODUCER_CERTIFICATE_REVOKED</code> and is <strong>not retried</strong> by JobRunr. The next scheduled run is rejected in the handshake from the cached status, without asking the Management Node again, so there is no retry storm. A job whose own certificate is rejected by the producer (the producer closes the call with <code>UNAUTHENTICATED: Peer certificate revoked|unknown</code>) fails with <code>CONSUMER_CERTIFICATE_REJECTED</code>, also without retry. When the status is only unavailable, the normal retry policy applies, because the responder may come back. Each of these is logged as <code>event=revocation.job reason=... producer_id=... topic=... job_id=... retry=false</code>.</p>
+<p><strong>Enablement.</strong></p>
+<table>
+<thead>
+<tr>
+<th><code>client.tlsEnabled</code></th>
+<th><code>revocation.enforcement.enabled</code></th>
+<th>Revocation checks</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>true</code> (default)</td>
+<td><code>true</code> (default)</td>
+<td>applied to every producer connection with <code>tls=true</code>; a WARN for each producer configured without TLS</td>
+</tr>
+<tr>
+<td><code>true</code></td>
+<td><code>false</code></td>
+<td>not applied, WARN at startup</td>
+</tr>
+<tr>
+<td><code>false</code></td>
+<td>any</td>
+<td>not applied (mTLS off), WARN at startup</td>
+</tr>
+</tbody>
+</table>
+<p>The consumer uses its Management Node identity (<code>idp.keystore.*</code>, the <code>idp.*</code> properties of <code>client.properties</code>) and a bearer token with the <code>check_certificate_status</code> role for OCSP, like the producer. Status entries are cached under <code>${redis.prefix}:cert-status:</code> (by default <code>federator-client:cert-status:</code>) when <code>revocation.cache.type=redis</code>. <code>client.tlsSessionTimeout.seconds</code> (default 300) limits TLS session resumption. Metrics are served on <code>metrics.port</code>, <code>9465</code> by default for the consumer so it does not clash with a producer on the same host.</p>
 <h2 id="logging-and-metrics">Logging and metrics</h2>
 <p>Every decision is logged by the <code>RevocationAudit</code> logger as key=value:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>event=revocation.decision component=producer phase=recheck peer_serial=4a1f issuer="O=Org,CN=Federation CA" status=revoked result=close cause=revoked connection_id=/10.0.0.5:51234/1a2b3c4d detail="2 call(s) closed; ocsp"
 </span></code></pre></div>
-<p><code>phase</code> is <code>handshake</code>, <code>call</code> or <code>recheck</code>; <code>result</code> is <code>allow</code>, <code>reject</code> or <code>close</code>. <code>connection_id</code> is <code>&lt;remote address&gt;/&lt;first 8 bytes of the TLS session id&gt;</code>. The gRPC server does not know the remote address during the TLS handshake, so handshake lines show <code>-/&lt;session id&gt;</code>; the call and re-check lines of the same connection end with the same session id.</p>
+<p><code>component</code> is <code>producer</code> or <code>consumer</code>; on the consumer, call and re-check lines also carry <code>producer_id=... topic=... job_id=...</code>. <code>phase</code> is <code>handshake</code>, <code>call</code> or <code>recheck</code>; <code>result</code> is <code>allow</code>, <code>reject</code> or <code>close</code>. <code>connection_id</code> is <code>&lt;remote address&gt;/&lt;first 8 bytes of the TLS session id&gt;</code>. The gRPC server does not know the remote address during the TLS handshake, so handshake lines show <code>-/&lt;session id&gt;</code>; the call and re-check lines of the same connection end with the same session id.</p>
 <p>Metrics are served in Prometheus format at <code>GET http://&lt;host&gt;:${metrics.port}/metrics</code> (<code>metrics.enabled=true</code>, port <code>9464</code> by default):</p>
 <table>
 <thead>
@@ -1071,10 +1161,15 @@
 <td><code>resilience4j_circuitbreaker_state{name="ocsp-responder"}</code></td>
 <td>circuit breaker state</td>
 </tr>
+<tr>
+<td><code>federator_revocation_jobs_failed_total</code></td>
+<td><code>reason</code> (consumer jobs not retried)</td>
+</tr>
 </tbody>
 </table>
+<p>The <code>role</code> tag is <code>producer</code> or <code>consumer</code>.</p>
 <h2 id="configuration-reference">Configuration reference</h2>
-<p>See the <code>Revocation</code> sections of <code>src/configs/server.properties</code>. Keys:</p>
+<p>See the <code>Revocation</code> sections of <code>src/configs/server.properties</code> and <code>src/configs/client.properties</code>. The <code>revocation.*</code> keys are the same on both sides; the consumer adds <code>client.tlsEnabled</code> (default <code>true</code>) and <code>client.tlsSessionTimeout.seconds</code> (default <code>300</code>), and uses <code>metrics.port=9465</code>. Keys:</p>
 <table>
 <thead>
 <tr>
@@ -1216,7 +1311,7 @@
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"/></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 27, 2026 11:22:00 UTC">November 27, 2026</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-date" title="November 27, 2026 11:42:50 UTC">November 27, 2026</span>
   </span>
 
     
